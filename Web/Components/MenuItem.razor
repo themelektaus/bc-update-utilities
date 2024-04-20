@@ -1,0 +1,28 @@
+﻿
+<li class="@styleClass"
+    @onclick="SimpleAsyncCallback.Create(OnClick)">
+    @ChildContent
+</li>
+
+
+@inject IJSRuntime javascript
+
+@code {
+
+    string styleClass => $"interactable {(isEnabled ? "" : "disabled")}";
+
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public Action onClick { get; set; }
+    [Parameter] public Func<Task> onClickAsync { get; set; }
+    [Parameter] public bool isEnabled { get; set; } = true;
+
+    async Task OnClick()
+    {
+        await javascript.InvokeVoidAsync("closeMenu");
+
+        onClick?.Invoke();
+
+        await (onClickAsync?.Invoke() ?? Task.CompletedTask);
+    }
+
+}

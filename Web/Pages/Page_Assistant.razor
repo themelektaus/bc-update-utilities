@@ -1,0 +1,164 @@
+﻿
+@switch (step)
+{
+    case 1:
+        <AssistantPage>
+            <Title>Welcome</Title>
+            <Body>
+                There is no content yet on this page.
+            </Body>
+            <BottomLeft><Button isEnabled="false">Back</Button></BottomLeft>
+            <BottomRight><Button onClick="Next">Next</Button></BottomRight>
+        </AssistantPage>
+        break;
+
+    case 2:
+        <AssistantPage>
+            <Title>Connect to BC Server</Title>
+            <Body>
+                <div class="field">
+                    <label>Hostname</label>
+                    <Input @bind-value="bc.remoteMachine.hostname" />
+                </div>
+                <div class="field">
+                    <label>Username</label>
+                    <Input @bind-value="bc.remoteMachine.username" />
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <Input @bind-value="bc.remoteMachine.password" type="password" />
+                </div>
+            </Body>
+            <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+            <Bottom>
+                @if (IsConnectedToRemoteMachine())
+                {
+                    <Button onClick="DisconnectFromRemoteMachine">Disconnect</Button>
+                }
+                else
+                {
+                    <Button onClickAsync="ConnectToRemoteMachineAsync">Connect</Button>
+                }
+            </Bottom>
+            <BottomRight>
+                <Button onClick="Next"
+                        isEnabled="IsConnectedToRemoteMachine()">
+                    Next
+                </Button>
+            </BottomRight>
+        </AssistantPage>
+        break;
+
+    case 3:
+        <AssistantPage>
+            <Title>Old BC Instance</Title>
+            <Body>
+                <div class="field">
+                    <label>Name</label>
+                    <Input @bind-value="Config.Instance.bc.oldInstanceName" />
+                </div>
+            </Body>
+            <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+            <BottomRight><Button onClick="Next">Next</Button></BottomRight>
+        </AssistantPage>
+        break;
+
+    case 4:
+        <AssistantPage>
+            <Title>New BC Instance</Title>
+            <Body>
+                <div class="field">
+                    <label>Name</label>
+                    <Input @bind-value="Config.Instance.bc.newInstanceName" />
+                </div>
+            </Body>
+            <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+            <BottomRight><Button onClick="Next">Start</Button></BottomRight>
+        </AssistantPage>
+        break;
+
+    case 5:
+        <AssistantPage>
+            <Title>Migration</Title>
+            <Body>
+                Running... (Not really at the moment)
+            </Body>
+            <Bottom><Button onClick="Cancel">Cancel</Button></Bottom>
+        </AssistantPage>
+        break;
+}
+
+@code {
+
+    App app => App.Instance;
+    Config.BC bc => Config.Instance.bc;
+
+    int step = 1;
+
+    string remoteMachine;
+
+    protected override void OnInitialized()
+    {
+        app.components.menu.RenderLater();
+    }
+
+    void Back()
+    {
+        step--;
+        this.RenderLater();
+    }
+
+    void Next()
+    {
+        step++;
+        this.RenderLater();
+    }
+
+    async Task ConnectToRemoteMachineAsync()
+    {
+        app.IncreaseBusiness();
+
+        Logger.Pending("Connecting");
+
+        var manager = bc.remoteMachine.CreateManager();
+
+        var result = await manager.GetHostnameAsync();
+
+        if (result.response.exception is not null)
+        {
+            Logger.Error(result.response.exception.ToString());
+            DisconnectFromRemoteMachine();
+        }
+        else
+        {
+            remoteMachine = result.value;
+            Logger.Success("Connection established");
+        }
+
+        this.RenderLater();
+
+        app.DecreaseBusiness();
+    }
+
+    void DisconnectFromRemoteMachine()
+    {
+        if (remoteMachine is not null)
+        {
+            remoteMachine = null;
+            Logger.Info("Disconnected");
+        }
+        this.RenderLater();
+    }
+
+    bool IsConnectedToRemoteMachine()
+    {
+        return !string.IsNullOrEmpty(remoteMachine);
+    }
+
+    void Cancel()
+    {
+        step = 2;
+        DisconnectFromRemoteMachine();
+    }
+
+}

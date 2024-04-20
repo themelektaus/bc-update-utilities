@@ -1,0 +1,41 @@
+﻿
+<div @ref="logView" class="log-view">
+    @foreach (var entry in Logger.GetEntries())
+    {
+        <div class="log-view-entry">
+            <div class="log-view-entry-time">@entry.time</div>
+            <div class="log-view-entry-type log-view-entry-type-@entry.type">@entry.type</div>
+            <div class="log-view-entry-message">@entry.message</div>
+        </div>
+    }
+</div>
+
+@implements IDisposable
+
+@inject IJSRuntime javascript;
+
+@code {
+
+    ElementReference logView;
+
+    protected override void OnInitialized()
+    {
+        Logger.onUpdate += Logger_OnUpdate;
+    }
+
+    public void Dispose()
+    {
+        Logger.onUpdate -= Logger_OnUpdate;
+    }
+
+    void Logger_OnUpdate()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await javascript.InvokeVoidAsync("scrollDown", logView);
+    }
+
+}

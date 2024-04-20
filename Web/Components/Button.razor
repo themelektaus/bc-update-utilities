@@ -1,0 +1,28 @@
+﻿
+<button class="interactable"
+        disabled="@(!isEnabled)"
+        @onclick="SimpleAsyncCallback.Create(OnClick)">
+    @ChildContent
+</button>
+
+
+
+@code {
+
+
+
+    [Parameter] public RenderFragment ChildContent { get; set; }
+    [Parameter] public Action onClick { get; set; }
+    [Parameter] public Func<Task> onClickAsync { get; set; }
+    [Parameter] public bool isEnabled { get; set; } = true;
+
+    async Task OnClick()
+    {
+
+
+        onClick?.Invoke();
+
+        await (onClickAsync?.Invoke() ?? Task.CompletedTask);
+    }
+
+}

@@ -1,0 +1,35 @@
+﻿
+<div id="menu">
+    <ul>
+        <li class="menu-root-item">
+            File
+            <ul>
+                <MenuItem onClick="mainForm.Close">
+                    Close
+                </MenuItem>
+            </ul>
+        </li>
+        <li class="menu-root-item">
+            Settings
+            <ul>
+                <MenuItem onClick="() => mainForm.RefreshWindow(zoomFactor: 1, bounds: null, maximized: false)">
+                    Reset Window
+                </MenuItem>
+            </ul>
+        </li>
+    </ul>
+</div>
+
+<div id="menu-overlay"></div>
+
+@code {
+
+    App app => App.Instance;
+    MainForm mainForm => app.mainForm;
+
+    protected override void OnInitialized()
+    {
+        app.components.menu = this;
+    }
+
+}

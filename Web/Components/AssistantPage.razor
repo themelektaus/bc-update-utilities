@@ -1,0 +1,27 @@
+﻿
+<h1>@Title</h1>
+
+<div class="assistant-page-body">
+    <div class="assistant-page-body-content">
+        @Body
+    </div>
+    <div class="assistant-page-body-bottom">
+        @BottomLeft
+        <div style="flex: 1; "></div>
+        @Bottom
+        <div style="flex: 1; "></div>
+        @BottomRight
+    </div>
+</div>
+
+@code {
+
+    [Parameter] public RenderFragment Title { get; set; }
+    [Parameter] public RenderFragment Body { get; set; }
+    [Parameter] public RenderFragment BottomLeft { get; set; }
+    [Parameter] public RenderFragment Bottom { get; set; }
+    [Parameter] public RenderFragment BottomRight { get; set; }
+    [Parameter] public Action onBackClick { get; set; }
+    [Parameter] public Action onNextClick { get; set; }
+
+}

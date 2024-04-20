@@ -1,0 +1,99 @@
+﻿
+<div id="root-content" class="@(app.IsBusy() ? "disabled" : "")">
+    <Menu />
+    @if (app.Update?.available ?? false)
+    {
+        <div class="update-available-message">
+            New version available<br />
+            <Button onClickAsync="app.PerformUpdate">Update</Button>
+        </div>
+    }
+    <div data-page="@(page)">
+        @switch (page)
+        {
+            case nameof(Page_Assistant):
+                <Page_Assistant />
+                break;
+        }
+        <div>
+            <span class="loading"></span>
+        </div>
+    </div>
+
+    <DialogWithUserData @ref="downloadDialog" T="DownloadInfo">
+        <Title>
+            Missing File
+        </Title>
+        <Body>
+            <p>
+                You need to download
+                <b>@context?.Name</b>
+                to perform
+                <b>@context?.NeededFor</b>.
+            </p>
+        </Body>
+        <Bottom>
+            <Button onClickAsync="() => DownloadFile(context?.File)">Download</Button>
+            <Button onClick="downloadDialog.Close">Cancel</Button>
+        </Bottom>
+    </DialogWithUserData>
+</div>
+
+<LogView />
+
+@using Directory = System.IO.Directory
+@using File = System.IO.File
+@using Path = System.IO.Path
+
+@code {
+
+    static App app => App.Instance;
+
+    public DialogWithUserData<DownloadInfo> downloadDialog;
+    public record DownloadInfo(string File, string Name, string NeededFor);
+
+    string _page = nameof(Page_Assistant);
+
+    public string page
+    {
+        get
+        {
+            return _page;
+        }
+        set
+        {
+            if (_page == value)
+                return;
+
+            _page = value;
+
+            this.RenderLater();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        app.components.root = this;
+        app.mainForm.Activated += (_, _) => this.RenderLater();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            app.mainForm.OnAfterFirstRender(
+                Config.Instance.bounds,
+                Config.Instance.maximized
+            );
+        }
+    }
+
+    async Task DownloadFile(string name)
+    {
+        if (await app.DownloadFile(name))
+        {
+            downloadDialog.Close();
+        }
+    }
+
+}
