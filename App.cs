@@ -95,38 +95,41 @@ public class App : IDisposable
         return business > 0;
     }
 
-    public void IncreaseBusiness()
+    public async Task IncreaseBusinessAsync()
     {
         business++;
         components.root?.RenderLater();
+        await Task.Delay(1);
     }
 
-    public void DecreaseBusiness()
+    public async Task DecreaseBusinessAsync()
     {
         business--;
         components.root?.RenderLater();
+        await Task.Delay(1);
     }
 
     public async Task CheckForUpdates()
     {
-        bool IsUpdateAvailable() => Update?.available ?? false;
-
-        var updateAvailable = IsUpdateAvailable();
-
-        Update = components.root is null
-            ? null
-            : await Update.Check();
+        var updateAvailable = Update?.available ?? false;
 
         if (components.root is null)
+        {
+            Update = null;
             return;
+        }
 
-        if (updateAvailable != IsUpdateAvailable())
+        Update = await Update.Check();
+
+        if (updateAvailable != Update.available)
+        {
             components.root.RenderLater();
+        }
     }
 
     public async Task PerformUpdate()
     {
-        IncreaseBusiness();
+        await IncreaseBusinessAsync();
 
         Logger.Pending($"Downloading v{Update.remoteVersion}");
 

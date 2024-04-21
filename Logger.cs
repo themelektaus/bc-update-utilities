@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Components;
+
+using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -13,9 +15,11 @@ public static class Logger
         public string time;
         public string type;
         public string message;
+
+        public MarkupString htmlMessage => new(message.ReplaceLineEndings("<br>"));
     }
     static readonly object entriesLock = new();
-    static readonly List<Entry> entries = new();
+    static readonly List<Entry> entries = [];
 
     public static List<Entry> GetEntries()
     {
@@ -62,6 +66,16 @@ public static class Logger
     public static void Error(string message)
     {
         Log("error", message);
+    }
+
+    public static void Script(string message)
+    {
+        Log("script", message);
+    }
+
+    public static void Result(string message)
+    {
+        Log("result", message);
     }
 
     static void Log(string type, string message)

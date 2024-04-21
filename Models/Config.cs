@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -25,9 +26,21 @@ public class Config
             public string username = string.Empty;
             public string password = string.Empty;
 
-            public Naos.MachineManager CreateManager()
+            public PowerShellSession CreateSession()
             {
                 return new(hostname, username, password);
+            }
+
+            public async Task<PowerShellSession.Result> RunScriptAsync(string scriptBlock, object[] argumentList = null)
+            {
+                using var session = CreateSession();
+                return await session.RunScriptAsync(scriptBlock, argumentList);
+            }
+
+            public async Task<string> GetStringAsync(string scriptBlock, object[] argumentList = null)
+            {
+                var result = await RunScriptAsync(scriptBlock, argumentList);
+                return result.returnValue.FirstOrDefault()?.ToString();
             }
         }
         public RemoteMachine remoteMachine = new();

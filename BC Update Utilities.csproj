@@ -15,7 +15,8 @@
 
   <Target Name="PostPublish" AfterTargets="Publish">
     <Message Text="----------------------------------------------------------------------" Importance="high" />
-    <Exec Command="%22Build\BC Update Utilities.exe%22 publish $(PublicRemoteDownloadFolder) $(Version)" />
+    <!-- <Exec Command="%22Build\BC Update Utilities.exe%22 publish $(PublicRemoteDownloadFolder) $(Version)" /> -->
+    <Exec Command="%22Build\BC Update Utilities.exe%22 publish" />
   </Target>
 
   <ItemGroup>
@@ -23,6 +24,14 @@
     <Content Remove="Build\**" />
     <EmbeddedResource Remove="Build\**" />
     <None Remove="Build\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove=".gitignore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="wwwroot\index.css" />
   </ItemGroup>
 
   <ItemGroup>
