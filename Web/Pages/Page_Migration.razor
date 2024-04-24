@@ -1,0 +1,18 @@
+﻿<AssistantPage>
+    <Title>Migration</Title>
+    <Body>
+        Running... (Not really at the moment)
+    </Body>
+    <Bottom><Button onClick="Cancel">Cancel</Button></Bottom>
+</AssistantPage>
+
+@code {
+
+    [Parameter] public Action onCancel { get; set; }
+
+    void Cancel()
+    {
+        onCancel?.Invoke();
+    }
+
+}

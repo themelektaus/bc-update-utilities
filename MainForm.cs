@@ -20,14 +20,14 @@ public partial class MainForm : Form
         StartPosition = FormStartPosition.Manual;
         Margin = Padding.Empty;
 
-        SetupBlazorView();
+        SetupBlazorWebView();
 
         Opacity = 0;
 
         ResumeLayout(true);
     }
 
-    void SetupBlazorView()
+    void SetupBlazorWebView()
     {
         blazorWebView = new BlazorWebView
         {
@@ -52,9 +52,9 @@ public partial class MainForm : Form
         Controls.Add(blazorWebView);
     }
 
-    public void OnAfterFirstRender(Rectangle? bounds, bool maximized)
+    public void OnAfterFirstRender()
     {
-        RefreshWindow(zoomFactor: 1, bounds, maximized);
+        RefreshWindow();
 
         Opacity = 1;
 
@@ -79,7 +79,24 @@ public partial class MainForm : Form
         }
     }
 
-    public void RefreshWindow(float zoomFactor, Rectangle? bounds, bool maximized)
+    public void RefreshWindow()
+    {
+        Config.Instance.SetupBounds();
+        RefreshWindowInternal();
+    }
+
+    public void ResetWindow()
+    {
+        Config.Instance.ResetBounds();
+        RefreshWindowInternal();
+    }
+
+    void RefreshWindowInternal()
+    {
+        RefreshWindowInternal(zoomFactor: 1, Config.Instance.bounds, Config.Instance.maximized);
+    }
+
+    void RefreshWindowInternal(float zoomFactor, Rectangle bounds, bool maximized)
     {
         WindowState = maximized ? FormWindowState.Maximized : FormWindowState.Normal;
 
@@ -88,18 +105,18 @@ public partial class MainForm : Form
         Point location;
         Size size;
 
-        if (bounds.HasValue)
-        {
-            location = bounds.Value.Location;
-            size = bounds.Value.Size;
-        }
-        else
+        if (bounds.Location.IsEmpty)
         {
             var dpiFactor = blazorWebView.WebView.DeviceDpi / 96f;
-            size = (new Size(1120, 720) * zoomFactor * dpiFactor).ToSize();
+            size = (bounds.Size * zoomFactor * dpiFactor).ToSize();
 
             var screenSize = Screen.PrimaryScreen.Bounds.Size;
             location = (Point) ((screenSize - size) / 2);
+        }
+        else
+        {
+            location = bounds.Location;
+            size = bounds.Size;
         }
 
         if (Size != size || Location != location)

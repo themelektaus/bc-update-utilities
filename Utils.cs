@@ -1,7 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Security.Principal;
 using System.Windows.Forms;
 
@@ -33,14 +31,6 @@ public static class Utils
             WindowStyle = createNoWindow ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
         });
     }
-
-    public static List<string> GetDataFileNames()
-        => Directory.Exists("data")
-            ? Directory
-                .EnumerateFiles("data", "*.dat")
-                .Select(Path.GetFileNameWithoutExtension)
-                .ToList()
-            : new();
 
     public static OpenFileDialog CreateOpenFileDialog(string fileName)
     {

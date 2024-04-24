@@ -1,0 +1,12 @@
+﻿
+<input type="number" class="interactable"
+       @bind:get="value"
+       @bind:set="valueChanged.InvokeAsync"
+       @bind:event="oninput">
+
+@code {
+
+    [Parameter] public int value { get; set; }
+    [Parameter] public EventCallback<int> valueChanged { get; set; }
+
+}

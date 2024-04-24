@@ -1,0 +1,167 @@
+﻿<AssistantPage>
+    <Title>Services<span>@App.Instance.powershellSession.ToMarkup()</span></Title>
+    <Body>
+        @if (services is null)
+        {
+            <div class="loading"></div>
+            return;
+        }
+        <div class="table services">
+            <div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
+                <input placeholder="Search" @bind="searchText" @bind:event="oninput">
+            </div>
+            <div class="table-section table-section-header">
+                <div>
+                    <div>Name</div>
+                    <div>Title</div>
+                    <div>Start Type</div>
+                    <div>Status</div>
+                    <div></div>
+                </div>
+            </div>
+            <div class="table-section table-section-content">
+                @foreach (var service in GetServices())
+                {
+                    <div class="service">
+                        <div>@service.Name</div>
+                        <div>@service.DisplayName</div>
+                        <div data-start-type="@service.StartType"></div>
+                        <div data-status="@service.Status"></div>
+                        <div>
+                            @if (service.StartType == "Disabled")
+                            {
+                                <Button isEnabled="false">Start</Button>
+                            }
+                            else
+                            {
+                                <Button onClickAsync="() => StartService(service)"
+                                        styleClass="@(service.isStartable || service.isStoppable ? "positive" : "")"
+                                        isEnabled="service.isStartable">
+                                    Start
+                                </Button>
+                            }
+                            <Button onClickAsync="() => StopService(service)"
+                                    styleClass="@(service.isStartable || service.isStoppable ? "negative" : "")"
+                                    isEnabled="service.isStoppable">
+                                Stop
+                            </Button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <style>
+            .services .table-section > div {
+                grid-template-columns: 2fr 3fr 1fr 1fr 9em;
+            }
+            .service > div {
+                display: flex;
+                gap: .25em;
+            }
+        </style>
+    </Body>
+    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+    <BottomRight><Button onClick="Next">Next</Button></BottomRight>
+</AssistantPage>
+
+@code {
+
+    [Parameter] public Action onBack { get; set; }
+    [Parameter] public Action onNext { get; set; }
+
+    List<Service> services;
+
+    string searchText = string.Empty;
+
+    bool IsEnabled_Start(Service service)
+    {
+        return service.StartType != "Disabled" && service.Status == "Stopped";
+    }
+
+
+    bool IsStartEnabled(Service service)
+    {
+        return service.StartType != "Disabled" && service.Status == "Stopped";
+    }
+
+
+    IEnumerable<Service> GetServices()
+    {
+        return services.Where(x =>
+        {
+            if (x.Name.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            if (x.DisplayName.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            if (x.StartType.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            if (x.Status.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            return false;
+        });
+    }
+
+    void Back()
+    {
+        onBack?.Invoke();
+    }
+
+    void Next()
+    {
+        onNext?.Invoke();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        var result = await App.Instance.powershellSession.RunScriptAsync("{ Get-Service }");
+
+        services = new();
+        foreach (var x in result.returnValue)
+            services.Add(Service.From(x));
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task StartService(Service service)
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        await App.Instance.powershellSession.RunScriptAsync($"{{ param($service) Start-Service $service }}", [service.Object]);
+        await RefreshService(service);
+
+        await App.Instance.DecreaseBusinessAsync();
+
+    }
+
+    async Task StopService(Service service)
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        await App.Instance.powershellSession.RunScriptAsync($"{{ param($service) Stop-Service $service -Force }}", [service.Object]);
+        await RefreshService(service);
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task RefreshService(Service service)
+    {
+        var serviceObject = await App.Instance.powershellSession.GetObjectAsync($"{{ param($service) Get-Service $service }}", [service.Object]);
+        if (serviceObject is not null)
+        {
+            var name = serviceObject.Get<string>("Name");
+            var existingService = services.FirstOrDefault(x => x.Name == name);
+            if (existingService is not null)
+            {
+                existingService.Object = serviceObject;
+                existingService.Status = serviceObject.Get<string>("Status");
+            }
+        }
+    }
+
+}

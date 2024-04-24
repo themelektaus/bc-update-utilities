@@ -1,5 +1,6 @@
 ﻿
-<input type="@(type ?? "text")"
+<input type="@(type ?? "text")" class="interactable"
+       disabled="@(!isEnabled)"
        @bind:get="value"
        @bind:set="valueChanged.InvokeAsync"
        @bind:event="oninput">
@@ -9,5 +10,6 @@
     [Parameter] public string type { get; set; }
     [Parameter] public string value { get; set; }
     [Parameter] public EventCallback<string> valueChanged { get; set; }
+    [Parameter] public bool isEnabled { get; set; } = true;
 
 }

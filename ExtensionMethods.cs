@@ -3,6 +3,7 @@
 using Newtonsoft.Json;
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
@@ -16,6 +17,12 @@ namespace BCUpdateUtilities;
 public static class ExtensionMethods
 {
     const Flags PRIVATE_FLAGS = Flags.Instance | Flags.NonPublic;
+
+    public static void RenderLater(this IEnumerable<ComponentBase> @this)
+    {
+        foreach (var x in @this)
+            x.RenderLater();
+    }
 
     public static void RenderLater(this ComponentBase @this)
     {
@@ -57,19 +64,8 @@ public static class ExtensionMethods
         return (T) @this.EndInvoke(result);
     }
 
-    public static async Task<DialogResult> ShowDialogAsync(this CommonDialog @this)
+    public static T Get<T>(this System.Management.Automation.PSObject @this, string propertyName)
     {
-        var result = DialogResult.None;
-        var thread = new Thread(() => result = @this.ShowDialog());
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        await Task.Run(thread.Join);
-        return result;
+        return (T) @this.Properties[propertyName].Value;
     }
-
-    public static async Task<DialogResult> ShowDialogAsync(this CommonDialog @this, Control threadHandle)
-    {
-        return await threadHandle.InvokeAsync(@this.ShowDialog);
-    }
-
 }

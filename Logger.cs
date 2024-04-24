@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
-
+using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -25,58 +25,38 @@ public static class Logger
     {
 
         var entries = new List<Entry>();
+
         lock (entriesLock)
+        {
             entries.AddRange(Logger.entries);
+        }
+
         return entries;
     }
 
     static void AddEntry(Entry entry)
     {
         lock (entriesLock)
+        {
             entries.Add(entry);
+        }
     }
 
-    public static event Action onUpdate;
+    public static event Action<string, string> onUpdate;
 
     static readonly string file = Path.Combine(
         "logs",
         $"{DateTime.Now:yyyy-MM-dd HH-mm-ss fff}.log"
     );
 
-    public static void Pending(string message)
-    {
-        Log("pending", message);
-    }
-
-    public static void Info(string message)
-    {
-        Log("info", message);
-    }
-
-    public static void Success(string message)
-    {
-        Log("success", message);
-    }
-
-    public static void Warning(string message)
-    {
-        Log("warning", message);
-    }
-
-    public static void Error(string message)
-    {
-        Log("error", message);
-    }
-
-    public static void Script(string message)
-    {
-        Log("script", message);
-    }
-
-    public static void Result(string message)
-    {
-        Log("result", message);
-    }
+    public static void Pending(string message) => Log("pending", message);
+    public static void Info(string message) => Log("info", message);
+    public static void Success(string message) => Log("success", message);
+    public static void Warning(string message) => Log("warning", message);
+    public static void Error(string message) => Log("error", message);
+    public static void Exception(Exception ex) => Log("exception", ex.ToString());
+    public static void Script(string message) => Log("script", message);
+    public static void Result(string message) => Log("result", message);
 
     static void Log(string type, string message)
     {
@@ -91,7 +71,7 @@ public static class Logger
         };
         AddEntry(entry);
 
-        onUpdate?.Invoke();
+        onUpdate?.Invoke(type, message);
 
         Directory.CreateDirectory("logs");
 

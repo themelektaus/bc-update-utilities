@@ -16,19 +16,23 @@
 
 @code {
 
+    public static List<LogView> Instances { get; } = new();
+
     ElementReference logView;
 
     protected override void OnInitialized()
     {
+        Instances.Add(this);
         Logger.onUpdate += Logger_OnUpdate;
     }
 
     public void Dispose()
     {
+        Instances.Remove(this);
         Logger.onUpdate -= Logger_OnUpdate;
     }
 
-    void Logger_OnUpdate()
+    void Logger_OnUpdate(string type, string message)
     {
         InvokeAsync(StateHasChanged);
     }

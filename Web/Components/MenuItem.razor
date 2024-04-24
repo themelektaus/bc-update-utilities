@@ -1,15 +1,11 @@
 ﻿
-<li class="@styleClass"
-    @onclick="SimpleAsyncCallback.Create(OnClick)">
+<li class="interactable" @onclick="OnClick">
     @ChildContent
 </li>
-
 
 @inject IJSRuntime javascript
 
 @code {
-
-    string styleClass => $"interactable {(isEnabled ? "" : "disabled")}";
 
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public Action onClick { get; set; }

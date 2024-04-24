@@ -1,19 +1,16 @@
 ﻿
-<button class="interactable"
+<button class="interactable @styleClass"
         disabled="@(!isEnabled)"
-        @onclick="SimpleAsyncCallback.Create(OnClick)">
+        @onclick="OnClick">
     @ChildContent
 </button>
 
-
-
 @code {
-
-
 
     [Parameter] public RenderFragment ChildContent { get; set; }
     [Parameter] public Action onClick { get; set; }
     [Parameter] public Func<Task> onClickAsync { get; set; }
+    [Parameter] public string styleClass { get; set; }
     [Parameter] public bool isEnabled { get; set; } = true;
 
     async Task OnClick()

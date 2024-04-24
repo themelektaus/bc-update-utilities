@@ -1,0 +1,34 @@
+﻿<AssistantPage>
+    <Title>BC Instances<span>@App.Instance.powershellSession.ToMarkup()</span></Title>
+    <Body>
+        <div data-group="Instances">
+            <div class="field">
+                <label>Name of <span style="color: rosybrown; ">old instance</span></label>
+                <Input @bind-value="Config.Instance.bc.oldInstanceName" />
+            </div>
+            <div class="field">
+                <label>Name of <span style="color: greenyellow; ">new instance</span></label>
+                <Input @bind-value="Config.Instance.bc.newInstanceName" />
+            </div>
+        </div>
+    </Body>
+    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+    <BottomRight><Button onClick="Next" isEnabled="false">Next</Button></BottomRight>
+</AssistantPage>
+
+@code {
+
+    [Parameter] public Action onBack { get; set; }
+    [Parameter] public Action onNext { get; set; }
+    
+    void Back()
+    {
+        onBack?.Invoke();
+    }
+
+    void Next()
+    {
+        onNext?.Invoke();
+    }
+
+}

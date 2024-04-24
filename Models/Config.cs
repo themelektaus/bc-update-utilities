@@ -8,13 +8,9 @@ namespace BCUpdateUtilities.Models;
 
 public class Config
 {
+    static readonly Size defaultWindowSize = new(1120, 720);
+
     static readonly string PATH = Path.Combine("data", "config.json");
-
-    static Config instance;
-    public static Config Instance => instance ??= Load();
-
-    public Rectangle? bounds;
-    public bool maximized;
 
     public string downloadUrl = "https://steinalt.online/download/bc-update-utilities";
 
@@ -25,23 +21,6 @@ public class Config
             public string hostname = "localhost";
             public string username = string.Empty;
             public string password = string.Empty;
-
-            public PowerShellSession CreateSession()
-            {
-                return new(hostname, username, password);
-            }
-
-            public async Task<PowerShellSession.Result> RunScriptAsync(string scriptBlock, object[] argumentList = null)
-            {
-                using var session = CreateSession();
-                return await session.RunScriptAsync(scriptBlock, argumentList);
-            }
-
-            public async Task<string> GetStringAsync(string scriptBlock, object[] argumentList = null)
-            {
-                var result = await RunScriptAsync(scriptBlock, argumentList);
-                return result.returnValue.FirstOrDefault()?.ToString();
-            }
         }
         public RemoteMachine remoteMachine = new();
 
@@ -50,7 +29,65 @@ public class Config
     }
     public BC bc = new();
 
+    public class MSSQL
+    {
+        public string hostname = "localhost";
+        public int port = 1433;
+        public bool integratedSecurity = true;
+        public string username = "sa";
+        public string password = "";
+        public string database = "";
+
+        public string CreateScriptBlock(
+            string command,
+            bool selectName = false,
+            bool useCredentialArg = false,
+            bool addDatabaseArg = false
+        )
+        {
+            var scriptBlock = new System.Text.StringBuilder();
+
+            if (integratedSecurity)
+            {
+                scriptBlock
+                    .Append(command);
+            }
+            else
+            {
+                if (useCredentialArg)
+                {
+                    scriptBlock
+                        .AppendLine($"$password = ConvertTo-SecureString \"{password}\" -AsPlainText -Force")
+                        .AppendLine($"$credential = New-Object System.Management.Automation.PSCredential(\"{username}\", $password)")
+                        .Append(command)
+                        .Append($" -Credential $credential");
+                }
+                else
+                {
+                    scriptBlock
+                        .Append(command)
+                        .Append($" -Username \"{username}\"")
+                        .Append($" -Password \"{password}\"");
+                }
+            }
+
+            scriptBlock.Append($" -ServerInstance \"{hostname},{port}\"");
+
+            if (addDatabaseArg)
+                scriptBlock.Append($" -Database \"{database}\"");
+
+            if (selectName)
+                scriptBlock.Append(" | Select-Object Name");
+
+            return $"{{ {scriptBlock} }}";
+        }
+    }
+    public MSSQL mssql = new();
+
     Config() { }
+
+    static Config instance;
+    public static Config Instance => instance ??= Load();
 
     static Config Load()
     {
@@ -104,5 +141,22 @@ public class Config
         await response.Content.CopyToAsync(fileStream);
 
         return true;
+    }
+
+    public Rectangle bounds;
+    public bool maximized;
+
+    public void ResetBounds()
+    {
+        bounds = default;
+        maximized = false;
+
+        SetupBounds();
+    }
+
+    public void SetupBounds()
+    {
+        if (bounds.Size.IsEmpty)
+            bounds.Size = defaultWindowSize;
     }
 }

@@ -1,0 +1,123 @@
+﻿<AssistantPage>
+    <Title>Microsoft SQL Backup<span>@App.Instance.powershellSession.ToMarkup()</span></Title>
+    <Body>
+        @if (!ready)
+        {
+            <div class="loading"></div>
+            return;
+        }
+        <p>There isn't any description on this page yet.</p>
+        <ul>
+            @foreach (var backupFile in backupFiles)
+            {
+                <li>@backupFile</li>
+            }
+        </ul>
+        <Button onClickAsync="Backup" isEnabled="dataFolder is not null">Backup</Button>
+    </Body>
+    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+    <BottomRight><Button onClick="Next" isEnabled="backupFiles.Count > 0">Next</Button></BottomRight>
+</AssistantPage>
+
+@code {
+
+    static Config.MSSQL mssql => Config.Instance.mssql;
+
+    [Parameter] public Action onBack { get; set; }
+    [Parameter] public Action onNext { get; set; }
+
+    bool ready;
+    string dataFolder;
+    readonly List<string> backupFiles = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshAsync();
+    }
+
+    async Task RefreshAsync()
+    {
+        ready = false;
+        dataFolder = null;
+        backupFiles.Clear();
+
+        await App.Instance.IncreaseBusinessAsync();
+
+        var result = await App.Instance.powershellSession.RunScriptAsync(
+            mssql.CreateScriptBlock(
+                command: "Invoke-Sqlcmd -Query "
+                    + "\""
+                    + " select [filename] from [master].[sys].[sysfiles] "
+                    + " where [name] = 'master' "
+                    + "\""
+            )
+        );
+
+        var firstValue = result.returnValue?.FirstOrDefault();
+
+        if (firstValue is not null)
+        {
+            string filename = (firstValue as dynamic).filename;
+            if (filename is not null)
+            {
+                dataFolder = new System.IO.FileInfo(filename).DirectoryName;
+
+                result = await App.Instance.powershellSession.RunScriptAsync(
+                    mssql.CreateScriptBlock(
+                        command: $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
+                    )
+                );
+
+                foreach (var @object in result.returnValue)
+                {
+                    var x = @object as dynamic;
+                    if (x.file == 1)
+                    {
+                        string file = x.subdirectory;
+                        if (file.StartsWith(mssql.database) && file.EndsWith(".bak"))
+                        {
+                            backupFiles.Add(file);
+                        }
+                    }
+                }
+            }
+        }
+
+        ready = true;
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task Backup()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        var backupFile = System.IO.Path.Combine(
+            dataFolder,
+            $"{mssql.database}-{DateTime.Now.Ticks}.bak"
+        );
+
+        await App.Instance.powershellSession.RunScriptAsync(
+            mssql.CreateScriptBlock(
+                command: $"Backup-SqlDatabase -BackupFile \"{backupFile}\"",
+                useCredentialArg: true,
+                addDatabaseArg: true
+            )
+        );
+
+        await RefreshAsync();
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    void Back()
+    {
+        onBack?.Invoke();
+    }
+
+    void Next()
+    {
+        onNext?.Invoke();
+    }
+
+}

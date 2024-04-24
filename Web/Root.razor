@@ -1,5 +1,6 @@
 ﻿
 <div id="root-content" class="@(app.IsBusy() ? "disabled" : "")">
+    <div class="loading"></div>
     <Menu />
     @if (app.Update?.available ?? false)
     {
@@ -11,35 +12,46 @@
     <div data-page="@(page)">
         @switch (page)
         {
-            case nameof(Page_Assistant):
-                <Page_Assistant />
+            case nameof(Page_Welcome):
+                <Page_Welcome onContinue="() => page = nameof(Page_RemoteConnection)" />
+                break;
+
+            case nameof(Page_RemoteConnection):
+                <Page_RemoteConnection onBack="() => page = nameof(Page_Welcome)"
+                                       onNext="() => page = nameof(Page_Services)" />
+                break;
+
+            case nameof(Page_Services):
+                <Page_Services onBack="() => page = nameof(Page_RemoteConnection)"
+                               onNext="() => page = nameof(Page_MicrosoftSqlConnection)" />
+                break;
+
+            case nameof(Page_MicrosoftSqlConnection):
+                <Page_MicrosoftSqlConnection onBack="() => page = nameof(Page_Services)"
+                                             onNext="() => page = nameof(Page_MicrosoftSqlBackup)" />
+                break;
+
+            case nameof(Page_MicrosoftSqlBackup):
+                <Page_MicrosoftSqlBackup onBack="() => page = nameof(Page_MicrosoftSqlConnection)"
+                                         onNext="() => page = nameof(Page_BCInstance)" />
+                break;
+
+            case nameof(Page_BCInstance):
+                <Page_BCInstance onBack="() => page = nameof(Page_MicrosoftSqlBackup)"
+                                 onNext="() => page = nameof(Page_Migration)" />
+                break;
+
+            case nameof(Page_Migration):
+                <Page_Migration onCancel="() => page = nameof(Page_RemoteConnection)" />
                 break;
         }
-        <div>
-            <span class="loading"></span>
-        </div>
     </div>
-
-    <DialogWithUserData @ref="downloadDialog" T="DownloadInfo">
-        <Title>
-            Missing File
-        </Title>
-        <Body>
-            <p>
-                You need to download
-                <b>@context?.Name</b>
-                to perform
-                <b>@context?.NeededFor</b>.
-            </p>
-        </Body>
-        <Bottom>
-            <Button onClickAsync="() => DownloadFile(context?.File)">Download</Button>
-            <Button onClick="downloadDialog.Close">Cancel</Button>
-        </Bottom>
-    </DialogWithUserData>
 </div>
 
-<LogView />
+@if (app.LogViewVisible)
+{
+    <LogView />
+}
 
 @using Directory = System.IO.Directory
 @using File = System.IO.File
@@ -47,12 +59,11 @@
 
 @code {
 
+    public static Root Instance { get; private set; }
+
     static App app => App.Instance;
 
-    public DialogWithUserData<DownloadInfo> downloadDialog;
-    public record DownloadInfo(string File, string Name, string NeededFor);
-
-    string _page = nameof(Page_Assistant);
+    string _page = nameof(Page_Welcome);
 
     public string page
     {
@@ -73,7 +84,8 @@
 
     protected override void OnInitialized()
     {
-        app.components.root = this;
+        Instance = this;
+
         app.mainForm.Activated += (_, _) => this.RenderLater();
     }
 
@@ -81,18 +93,7 @@
     {
         if (firstRender)
         {
-            app.mainForm.OnAfterFirstRender(
-                Config.Instance.bounds,
-                Config.Instance.maximized
-            );
-        }
-    }
-
-    async Task DownloadFile(string name)
-    {
-        if (await app.DownloadFile(name))
-        {
-            downloadDialog.Close();
+            app.mainForm.OnAfterFirstRender();
         }
     }
 

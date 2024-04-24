@@ -10,9 +10,12 @@
             </ul>
         </li>
         <li class="menu-root-item">
-            Settings
+            View
             <ul>
-                <MenuItem onClick="() => mainForm.RefreshWindow(zoomFactor: 1, bounds: null, maximized: false)">
+                <MenuItem onClickAsync="app.ToggleLogViewAsync">
+                    @(app.LogViewVisible ? "Hide Log" : "Show Log")
+                </MenuItem>
+                <MenuItem onClick="mainForm.ResetWindow">
                     Reset Window
                 </MenuItem>
             </ul>
@@ -22,14 +25,22 @@
 
 <div id="menu-overlay"></div>
 
+@implements IDisposable
+
 @code {
+
+    public static List<Menu> Instances { get; } = new();
 
     App app => App.Instance;
     MainForm mainForm => app.mainForm;
 
     protected override void OnInitialized()
     {
-        app.components.menu = this;
+        Instances.Add(this);
     }
 
+    public void Dispose()
+    {
+        Instances.Remove(this);
+    }
 }

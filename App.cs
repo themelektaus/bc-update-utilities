@@ -2,6 +2,7 @@
 using BCUpdateUtilities.Web.Components;
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -24,13 +25,6 @@ public class App : IDisposable
         set => nextUpdateCheckCountdown = value;
     }
 
-    public class Components
-    {
-        public Root root;
-        public Menu menu;
-    }
-    public readonly Components components = new();
-
     public App()
     {
         Instance = this;
@@ -43,7 +37,7 @@ public class App : IDisposable
 
         updateCheckTask = Task.Run(async () =>
         {
-            while (components.root is null)
+            while (Root.Instance is null)
             {
                 await Task.Delay(1);
             }
@@ -53,18 +47,22 @@ public class App : IDisposable
             await CheckForUpdates();
 
             NextUpdateCheckCountdown = 900;
+
             while (NextUpdateCheckCountdown > 0)
             {
                 if (updateCheckTask is null)
+                {
                     return;
+                }
 
                 NextUpdateCheckCountdown--;
                 await Task.Delay(1000);
             }
+
             goto Loop;
         });
 
-        Logger.Info("Welcome");
+        Logger.onUpdate += Logger_OnUpdate;
     }
 
     public void Dispose()
@@ -88,6 +86,16 @@ public class App : IDisposable
         }
     }
 
+    async Task RenderRootLaterAsync()
+    {
+        var root = Root.Instance;
+        if (root is not null)
+        {
+            root.RenderLater();
+            await Task.Delay(1);
+        }
+    }
+
     int business;
 
     public bool IsBusy()
@@ -98,22 +106,20 @@ public class App : IDisposable
     public async Task IncreaseBusinessAsync()
     {
         business++;
-        components.root?.RenderLater();
-        await Task.Delay(1);
+        await RenderRootLaterAsync();
     }
 
     public async Task DecreaseBusinessAsync()
     {
         business--;
-        components.root?.RenderLater();
-        await Task.Delay(1);
+        await RenderRootLaterAsync();
     }
 
     public async Task CheckForUpdates()
     {
         var updateAvailable = Update?.available ?? false;
 
-        if (components.root is null)
+        if (Root.Instance is null)
         {
             Update = null;
             return;
@@ -123,7 +129,7 @@ public class App : IDisposable
 
         if (updateAvailable != Update.available)
         {
-            components.root.RenderLater();
+            await RenderRootLaterAsync();
         }
     }
 
@@ -144,30 +150,27 @@ public class App : IDisposable
         mainForm.Close();
     }
 
-    public async Task<bool> DownloadFile(string file)
+    public readonly PowerShellSession powershellSession = new();
+    public readonly List<string> mssqlDatabases = new();
+
+    public bool LogViewVisible { get; set; }
+
+    public async Task ToggleLogViewAsync()
     {
-        Logger.Pending($"Downloading {file}");
-
-        if (await Config.Instance.DownloadFile(file))
-        {
-            Logger.Success($"Download of {file}");
-            return true;
-        }
-
-        Logger.Error($"Download of {file}");
-        return false;
+        LogViewVisible = !LogViewVisible;
+        await RenderRootLaterAsync();
     }
 
-    public async Task<string> ShowOpenFileDialog(string fileName)
+    void Logger_OnUpdate(string type, string message)
     {
-        Logger.Pending("Opening File");
-
-        using var dialog = Utils.CreateOpenFileDialog(fileName);
-
-        var dialogResult = await dialog.ShowDialogAsync();
-        if (dialogResult == DialogResult.OK)
-            return dialog.FileName;
-
-        return null;
+        if (!LogViewVisible)
+        {
+            if (type == "warning" || type == "error" || type == "exception")
+            {
+                LogViewVisible = true;
+                Menu.Instances.RenderLater();
+                Root.Instance?.RenderLater();
+            }
+        }
     }
 }

@@ -1,0 +1,19 @@
+﻿<AssistantPage>
+    <Title>Welcome</Title>
+    <Body>
+        <p>There aren't any informations on this page yet.</p>
+        <br>
+    </Body>
+    <Bottom><Button onClick="Continue">Continue</Button></Bottom>
+</AssistantPage>
+
+@code {
+
+    [Parameter] public Action onContinue { get; set; }
+
+    void Continue()
+    {
+        onContinue?.Invoke();
+    }
+
+}

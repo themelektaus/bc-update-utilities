@@ -1,0 +1,54 @@
+﻿<AssistantPage>
+    <Title>Remote Connection</Title>
+    <Body>
+        <p>There isn't any description on this page yet.</p>
+        <div data-group="Connection Informations">
+            <div class="field">
+                <label>Hostname</label>
+                <Input @bind-value="rm.hostname" />
+            </div>
+            <div class="field">
+                <label>Username</label>
+                <Input @bind-value="rm.username" />
+            </div>
+            <div class="field">
+                <label>Password</label>
+                <Input @bind-value="rm.password" type="password" />
+            </div>
+        </div>
+        <br>
+    </Body>
+    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+    <BottomRight><Button onClickAsync="Next">Next</Button></BottomRight>
+</AssistantPage>
+
+@code {
+
+    static Config.BC.RemoteMachine rm => Config.Instance.bc.remoteMachine;
+
+    [Parameter] public Action onBack { get; set; }
+    [Parameter] public Action onNext { get; set; }
+
+    protected override void OnInitialized()
+    {
+        App.Instance.powershellSession.EndSession();
+    }
+
+    void Back()
+    {
+        onBack?.Invoke();
+    }
+
+    async Task Next()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        if (App.Instance.powershellSession.BeginSession(rm.hostname, rm.username, rm.password))
+        {
+            onNext?.Invoke();
+        }
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+}
