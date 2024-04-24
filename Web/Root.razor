@@ -33,16 +33,16 @@
 
             case nameof(Page_MicrosoftSqlBackup):
                 <Page_MicrosoftSqlBackup onBack="() => page = nameof(Page_MicrosoftSqlConnection)"
-                                         onNext="() => page = nameof(Page_BCInstance)" />
+                                         onNext="() => page = nameof(Page_BusinessCentralServerInstance)" />
                 break;
 
-            case nameof(Page_BCInstance):
-                <Page_BCInstance onBack="() => page = nameof(Page_MicrosoftSqlBackup)"
-                                 onNext="() => page = nameof(Page_Migration)" />
+            case nameof(Page_BusinessCentralServerInstance):
+                <Page_BusinessCentralServerInstance onBack="() => page = nameof(Page_MicrosoftSqlBackup)"
+                                                    onNext="() => page = nameof(Page_Summary)" />
                 break;
 
-            case nameof(Page_Migration):
-                <Page_Migration onCancel="() => page = nameof(Page_RemoteConnection)" />
+            case nameof(Page_Summary):
+                <Page_Summary onRestart="() => page = nameof(Page_RemoteConnection)" />
                 break;
         }
     </div>

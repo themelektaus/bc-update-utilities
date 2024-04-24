@@ -80,13 +80,17 @@
 
         Disconnect();
 
-        var scriptBlock = mssql.CreateScriptBlock(
-            command: "Get-SqlDatabase",
-            suffix: "| Select Name",
+        var command = mssql.GenerateCommand(
+            text: "Get-SqlDatabase",
+            suffix: " | Select Name",
             useCredentialArg: true
         );
 
-        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync(scriptBlock);
+        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync(
+            command.scriptText,
+            command.sensitiveArgs
+        );
+
         app.mssqlDatabases.AddRange(result.returnValue.Select(x => (x as dynamic).Name as string));
 
         if (!app.mssqlDatabases.Contains(mssql.database))

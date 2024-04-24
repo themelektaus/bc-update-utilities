@@ -15,8 +15,9 @@ public static class PowerShellSessionManager
     static PowerShellSession GetSession(Config.BC.RemoteMachine rm, string navAdminTool)
     {
         var session = sessions.FirstOrDefault(x
-            => x.hostname == rm.Hostname
-            && x.navAdminTool == navAdminTool
+            => x.Hostname == rm.Hostname
+            && x.Username == rm.Username
+            && x.NavAdminTool == navAdminTool
         );
 
         if (session is null)

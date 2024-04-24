@@ -1,5 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
-using Newtonsoft.Json.Serialization;
+
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -75,6 +75,12 @@ public static class Logger
 
         Directory.CreateDirectory("logs");
 
-        File.AppendAllText(file, $"[{entry.timestampString}] {entry.message}{Environment.NewLine}");
+        File.AppendAllText(
+            file,
+            "[" + entry.timestampString + "]"
+                + " [" + type + "] "
+                + entry.message
+                + Environment.NewLine
+        );
     }
 }

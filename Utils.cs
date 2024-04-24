@@ -1,7 +1,5 @@
 ﻿using System.Diagnostics;
-using System.IO;
 using System.Security.Principal;
-using System.Windows.Forms;
 
 namespace BCUpdateUtilities;
 
@@ -30,28 +28,6 @@ public static class Utils
             CreateNoWindow = createNoWindow,
             WindowStyle = createNoWindow ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
         });
-    }
-
-    public static OpenFileDialog CreateOpenFileDialog(string fileName)
-    {
-        var dialog = new OpenFileDialog();
-
-        if (!string.IsNullOrEmpty(fileName))
-        {
-            var file = new FileInfo(fileName);
-
-            if (file.Exists)
-            {
-                dialog.InitialDirectory = file.DirectoryName;
-                dialog.FileName = file.Name;
-            }
-            else if (Directory.Exists(fileName))
-            {
-                dialog.InitialDirectory = fileName;
-            }
-        }
-
-        return dialog;
     }
 
 }

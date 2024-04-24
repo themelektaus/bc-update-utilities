@@ -388,6 +388,7 @@ li.disabled,
         @include display-flex-column;
         justify-content: center;
         overflow: hidden;
+        padding-bottom: 1.5em;
     }
     
     &-inner-content {
@@ -398,7 +399,7 @@ li.disabled,
     }
 
     &-bottom {
-        padding-bottom: .125em;
+        padding-bottom: .25em;
         flex: 0;
         display: flex;
         justify-content: center;

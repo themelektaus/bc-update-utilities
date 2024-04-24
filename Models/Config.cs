@@ -23,8 +23,11 @@ public class Config
         }
         public RemoteMachine remoteMachine = new();
 
-        public string oldInstanceName = "BC190";
-        public string newInstanceName = "BC220";
+        public string oldShell = string.Empty;
+        public string oldServerInstance = string.Empty;
+
+        public string newShell = string.Empty;
+        public string newServerInstance = string.Empty;
     }
     public BC bc = new();
 
@@ -37,44 +40,47 @@ public class Config
         public string password = "";
         public string database = "";
 
-        public string CreateScriptBlock(
-            string command,
+        public (string scriptText, object[] sensitiveArgs) GenerateCommand(
+            string text,
             string suffix = "",
             bool useCredentialArg = false
         )
         {
-            var scriptBlock = new System.Text.StringBuilder();
+            var scriptText = new System.Text.StringBuilder();
+            object[] sensitiveArgs;
 
             if (integratedSecurity)
             {
-                scriptBlock
-                    .Append(command);
+                scriptText.Append(text);
+                sensitiveArgs = null;
             }
             else
             {
+                sensitiveArgs = [password];
+
                 if (useCredentialArg)
                 {
-                    scriptBlock
-                        .AppendLine($"$password = ConvertTo-SecureString \"{password}\" -AsPlainText -Force")
-                        .AppendLine($"$password.MakeReadOnly()")
+                    scriptText
+                        .AppendLine("$password = ConvertTo-SecureString \"{0}\" -AsPlainText -Force")
+                        .AppendLine("$password.MakeReadOnly()")
                         .AppendLine($"$credential = New-Object System.Management.Automation.PSCredential(\"{username}\", $password)")
-                        .Append(command)
+                        .Append(text)
                         .Append($" -Credential $credential");
                 }
                 else
                 {
-                    scriptBlock
-                        .Append(command)
+                    scriptText
+                        .Append(text)
                         .Append($" -Username \"{username}\"")
-                        .Append($" -Password \"{password}\"");
+                        .Append(" -Password \"{0}\"");
                 }
             }
 
-            scriptBlock.Append($" -ServerInstance \"{hostname},{port}\"");
-            scriptBlock.Append($" -TrustServerCertificate");
-            scriptBlock.Append($" {suffix}");
+            scriptText.Append($" -ServerInstance \"{hostname},{port}\"");
+            scriptText.Append($" -TrustServerCertificate");
+            scriptText.Append(suffix);
 
-            return $"{{ {scriptBlock} }}";
+            return (scriptText.ToString(), sensitiveArgs);
         }
     }
     public MSSQL mssql = new();

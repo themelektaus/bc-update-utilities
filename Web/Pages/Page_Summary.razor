@@ -1,0 +1,18 @@
+﻿<AssistantPage>
+    <Title>Summary</Title>
+    <Body>
+        <h2>Done</h2>
+    </Body>
+    <Bottom><Button onClick="Restart" styleClass="negative">Restart</Button></Bottom>
+</AssistantPage>
+
+@code {
+
+    [Parameter] public Action onRestart { get; set; }
+
+    void Restart()
+    {
+        onRestart?.Invoke();
+    }
+
+}

@@ -51,10 +51,16 @@
             </div>
         </div>
         <style>
+            .assistant-page-body-content {
+                padding-bottom: 0;
+            }
+            .assistant-page-body-inner-content {
+                flex: 1;
+                align-items: unset;
+            }
             .services .table-section > div {
                 grid-template-columns: 2fr 3fr 1fr 1fr 9em;
             }
-
             .service > div {
                 display: flex;
                 gap: .25em;
@@ -79,12 +85,10 @@
         return service.StartType != "Disabled" && service.Status == "Stopped";
     }
 
-
     bool IsStartEnabled(Service service)
     {
         return service.StartType != "Disabled" && service.Status == "Stopped";
     }
-
 
     IEnumerable<Service> GetServices()
     {
@@ -120,7 +124,7 @@
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync("{ Get-Service }");
+        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync("Get-Service");
 
         services = new();
         foreach (var x in result.returnValue)
@@ -134,8 +138,8 @@
         await App.Instance.IncreaseBusinessAsync();
 
         await PowerShellSessionManager.DefaultSession.RunScriptAsync(
-            $"{{ param($service) Start-Service $service }}",
-            [service.Object]
+            scriptText: "param($service) Start-Service $service",
+            argumentList: [service.Object]
         );
 
         await RefreshService(service);
@@ -149,8 +153,8 @@
         await App.Instance.IncreaseBusinessAsync();
 
         await PowerShellSessionManager.DefaultSession.RunScriptAsync(
-            $"{{ param($service) Stop-Service $service -Force }}",
-            [service.Object]
+            scriptText: "param($service) Stop-Service $service -Force",
+            argumentList: [service.Object]
         );
 
         await RefreshService(service);
@@ -161,8 +165,8 @@
     async Task RefreshService(Service service)
     {
         var serviceObject = await PowerShellSessionManager.DefaultSession.GetObjectAsync(
-            $"{{ param($service) Get-Service $service }}",
-            [service.Object]
+            scriptText: "param($service) Get-Service $service",
+            argumentList: [service.Object]
         );
 
         if (serviceObject is not null)
@@ -173,6 +177,8 @@
             {
                 existingService.Object = serviceObject;
                 existingService.Status = serviceObject.Get<string>("Status");
+
+                this.RenderLater();
             }
         }
     }

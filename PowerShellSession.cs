@@ -13,6 +13,8 @@ namespace BCUpdateUtilities;
 
 public class PowerShellSession : IDisposable
 {
+    const string WSMAN_PATH = @"WSMan:\localhost\Client\TrustedHosts";
+
     public struct Result
     {
         public List<ErrorRecord> errors;
@@ -43,13 +45,21 @@ public class PowerShellSession : IDisposable
                 exception = exception,
             };
 
-            //result.LogResult();
+            result.LogResult();
             result.LogErrors();
 
             return result;
         }
 
-        public void LogErrors()
+        void LogResult()
+        {
+            foreach (var value in returnValue.Where(x => x.TypeNames.Contains("System.String")))
+            {
+                Logger.Result(value.ToString());
+            }
+        }
+
+        void LogErrors()
         {
             foreach (var error in errors)
             {
@@ -68,41 +78,14 @@ public class PowerShellSession : IDisposable
                 Logger.Exception(exception);
             }
         }
-
-        public void LogResult()
-        {
-            if (returnValue.Count > 0)
-            {
-                var stringResult = new System.Text.StringBuilder();
-
-                foreach (var value in returnValue)
-                {
-                    foreach (var property in value.Properties)
-                    {
-                        stringResult
-                            .Append(property.Name)
-                            .Append(": ")
-                            .Append(property.Value?.ToString());
-
-                        if (property != value.Properties.LastOrDefault())
-                        {
-                            stringResult.Append(", ");
-                        }
-                    }
-                    stringResult.AppendLine();
-                }
-
-                Logger.Result(stringResult.ToString());
-            }
-        }
     }
 
     readonly Runspace runspace;
 
-    public string hostname { get; private set; }
-    public string username { get; private set; }
+    public string Hostname { get; private set; }
+    public string Username { get; private set; }
 
-    public string navAdminTool { get; private set; }
+    public string NavAdminTool { get; private set; }
 
     object session;
 
@@ -131,12 +114,12 @@ public class PowerShellSession : IDisposable
             return new("-");
         }
 
-        return new($"<span style=\"opacity: .75\">{username ?? "guest"}@</span>{hostname}");
+        return new($"<span style=\"opacity: .75\">{Username ?? "guest"}@</span>{Hostname}");
     }
 
     public bool BeginSession(string hostname, string username, string password, string navAdminTool)
     {
-        Logger.Pending("Connecting");
+        Logger.Pending("Starting Session");
 
         if (HasSession)
         {
@@ -144,29 +127,17 @@ public class PowerShellSession : IDisposable
             return false;
         }
 
-        var trustedHosts = GetTrustedHosts();
+        Hostname = hostname;
+        Username = username;
 
-        if (!trustedHosts.Contains(hostname) && trustedHosts.FirstOrDefault() != "*")
+        NavAdminTool = navAdminTool;
+
+        if (Utils.IsAdmin())
         {
-            trustedHosts.Add(hostname);
-
-            var newValue = trustedHosts.Count == 0 ? hostname : string.Join(',', trustedHosts);
-
-            var command = new Command("Set-Item");
-            command.Parameters.Add("Path", @"WSMan:\localhost\Client\TrustedHosts");
-            command.Parameters.Add("Value", newValue);
-            command.Parameters.Add("Force", true);
-
-            RunCommand(command);
-        }
-
-        if (!trustedHosts.Contains(hostname) && trustedHosts.FirstOrDefault() != "*")
-        {
-            Logger.Error(
-                "Cannot execute a remote command with out the hostname being added to the trusted hosts list. " +
-                $"Please set MachineManager to handle this automatically or add the address manually: {hostname}"
-            );
-            return false;
+            if (!AddTrustedHost())
+            {
+                return false;
+            }
         }
 
         var securePassword = new SecureString();
@@ -186,17 +157,31 @@ public class PowerShellSession : IDisposable
             return false;
         }
 
-        var sessionOptionCommand = new Command("New-PSSessionOption");
-        sessionOptionCommand.Parameters.Add("OperationTimeout", 0);
-        sessionOptionCommand.Parameters.Add("IdleTimeout", 1200000);
-        var sessionOption = RunCommand(sessionOptionCommand).returnValue.Single().BaseObject;
+        try
+        {
+            Command command;
+            CommandParameterCollection parameters;
 
-        var sessionCommand = new Command("New-PSSession");
-        sessionCommand.Parameters.Add("ComputerName", hostname);
-        sessionCommand.Parameters.Add("Credential", credential);
-        sessionCommand.Parameters.Add("SessionOption", sessionOption);
+            command = new("New-PSSessionOption");
+            parameters = command.Parameters;
+            parameters.Add("OperationTimeout", 0);
+            parameters.Add("IdleTimeout", 1200000);
 
-        session = RunCommand(sessionCommand).returnValue.FirstOrDefault()?.BaseObject;
+            var sessionOption = RunCommand(command).returnValue.Single().BaseObject;
+
+            command = new("New-PSSession");
+            parameters = command.Parameters;
+            parameters.Add("ComputerName", Hostname);
+            parameters.Add("Credential", credential);
+            parameters.Add("SessionOption", sessionOption);
+
+            session = RunCommand(command).returnValue.Single().BaseObject;
+        }
+        catch (Exception ex)
+        {
+            Logger.Exception(ex);
+            return false;
+        }
 
         if (session is null)
         {
@@ -205,15 +190,10 @@ public class PowerShellSession : IDisposable
 
         if (navAdminTool != string.Empty)
         {
-            RunScript($@"{{ . ""{navAdminTool}"" }}");
+            RunScript($@". ""{navAdminTool}""");
         }
 
-        this.hostname = hostname;
-        this.username = username;
-
-        this.navAdminTool = navAdminTool;
-
-        Logger.Success("Connected");
+        Logger.Success("Session started");
 
         return true;
     }
@@ -225,22 +205,9 @@ public class PowerShellSession : IDisposable
             return;
         }
 
-        var trustedHosts = GetTrustedHosts();
-
-        if (trustedHosts.Contains(hostname))
+        if (Utils.IsAdmin())
         {
-            trustedHosts.Remove(hostname);
-
-            var newValue = trustedHosts.Count == 0
-                ? string.Empty
-                : string.Join(',', trustedHosts);
-
-            var command = new Command("Set-Item");
-            command.Parameters.Add("Path", @"WSMan:\localhost\Client\TrustedHosts");
-            command.Parameters.Add("Value", newValue);
-            command.Parameters.Add("Force", true);
-
-            RunCommand(command);
+            RemoveTrustedHost();
         }
 
         var sessionCommand = new Command("Remove-PSSession");
@@ -248,20 +215,70 @@ public class PowerShellSession : IDisposable
 
         RunCommand(sessionCommand);
 
-        hostname = null;
-        username = null;
+        Hostname = null;
+        Username = null;
 
-        navAdminTool = null;
+        NavAdminTool = null;
 
         session = null;
 
-        Logger.Info("Disconnected");
+        Logger.Info("Session closed");
+    }
+
+    bool AddTrustedHost()
+    {
+        var trustedHosts = GetTrustedHosts();
+
+        if (!trustedHosts.Contains(Hostname) && trustedHosts.FirstOrDefault() != "*")
+        {
+            trustedHosts.Add(Hostname);
+
+            var value = trustedHosts.Count == 0
+                ? Hostname
+                : string.Join(',', trustedHosts);
+
+            var command = new Command("Set-Item");
+            command.Parameters.Add("Path", WSMAN_PATH);
+            command.Parameters.Add("Value", value);
+            command.Parameters.Add("Force", true);
+
+            RunCommand(command);
+        }
+
+        if (!trustedHosts.Contains(Hostname) && trustedHosts.FirstOrDefault() != "*")
+        {
+            Logger.Error($"Could not trust \"{Hostname}\"");
+            return false;
+        }
+
+        return true;
+    }
+
+    void RemoveTrustedHost()
+    {
+        var trustedHosts = GetTrustedHosts();
+
+        if (trustedHosts.Contains(Hostname))
+        {
+            trustedHosts.Remove(Hostname);
+
+            var newValue = trustedHosts.Count == 0
+                ? string.Empty
+                : string.Join(',', trustedHosts);
+
+            var command = new Command("Set-Item");
+            command.Parameters.Add("Path", WSMAN_PATH);
+            command.Parameters.Add("Value", newValue);
+            command.Parameters.Add("Force", true);
+
+            RunCommand(command);
+        }
     }
 
     List<string> GetTrustedHosts()
     {
         var command = new Command("Get-Item");
-        command.Parameters.Add("Path", @"WSMan:\localhost\Client\TrustedHosts");
+        command.Parameters.Add("Path", WSMAN_PATH);
 
         var result = RunCommand(command);
 
@@ -297,42 +314,86 @@ public class PowerShellSession : IDisposable
         return Result.Invoke(powershell);
     }
 
-    public Result RunScript(string scriptBlock, object[] argumentList = null)
+    public Result RunScript(
+        string scriptText,
+        object[] sensitiveArgs = null,
+        object[] argumentList = null,
+        bool convertToJson = false
+    )
     {
+        Logger.Script(scriptText);
+
+        if (sensitiveArgs is not null)
+        {
+            scriptText = string.Format(scriptText, sensitiveArgs);
+        }
+
         using var powershell = CreateShell();
 
         var proxy = powershell.Runspace.SessionStateProxy;
         proxy.SetVariable(nameof(session), session);
         proxy.SetVariable(nameof(argumentList), argumentList ?? []);
 
-        var args = "" +
+        var scriptBlock = $"{{ {scriptText} }}";
+
+        var args =
             $" -Session ${nameof(session)}" +
             $" -ScriptBlock ${nameof(scriptBlock)}" +
-            $" -ArgumentList ${nameof(argumentList)}" +
-            "";
+            $" -ArgumentList ${nameof(argumentList)}";
 
-        Logger.Script(scriptBlock);
-
-        var script = $"${nameof(scriptBlock)} = {scriptBlock}\r\nInvoke-Command {args}";
+        var suffix = convertToJson ? "| ConvertTo-Json -Compress" : "";
+        var script = $"${nameof(scriptBlock)} = {scriptBlock}\r\nInvoke-Command {args} {suffix}";
 
         powershell.AddScript(script);
 
         return Result.Invoke(powershell);
     }
 
-    public async Task<Result> RunScriptAsync(string scriptBlock, object[] argumentList = null)
+    public async Task<Result> RunScriptAsync(
+        string scriptText,
+        object[] sensitiveArgs = null,
+        object[] argumentList = null,
+        bool convertToJson = false
+    )
     {
-        return await Task.Run(() => RunScript(scriptBlock, argumentList));
+        return await Task.Run(
+            () => RunScript(
+                scriptText,
+                sensitiveArgs,
+                argumentList,
+                convertToJson
+            )
+        );
     }
 
-    public async Task<List<PSObject>> GetObjectListAsync(string scriptBlock, object[] argumentList = null)
+    public async Task<List<PSObject>> GetObjectListAsync(
+        string scriptText,
+        object[] sensitiveArgs = null,
+        object[] argumentList = null
+    )
     {
-        return (await RunScriptAsync(scriptBlock, argumentList)).returnValue;
+        return (
+            await RunScriptAsync(
+                scriptText,
+                sensitiveArgs,
+                argumentList
+            )
+        ).returnValue;
     }
 
-    public async Task<PSObject> GetObjectAsync(string scriptBlock, object[] argumentList = null)
+    public async Task<PSObject> GetObjectAsync(
+        string scriptText,
+        object[] sensitiveArgs = null,
+        object[] argumentList = null
+    )
     {
-        return (await GetObjectListAsync(scriptBlock, argumentList)).FirstOrDefault();
+        return (
+            await GetObjectListAsync(
+                scriptText,
+                sensitiveArgs,
+                argumentList
+            )
+        ).FirstOrDefault();
     }
 
 }
