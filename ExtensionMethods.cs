@@ -44,7 +44,8 @@ public static class ExtensionMethods
 
     static readonly JsonSerializerSettings jsonSerializerSettings = new()
     {
-        Formatting = Formatting.Indented
+        Formatting = Formatting.Indented,
+        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
     };
 
     public static string ToJson<T>(this T @this)

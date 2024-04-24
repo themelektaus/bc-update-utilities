@@ -4,7 +4,6 @@ using BCUpdateUtilities.Web.Components;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace BCUpdateUtilities;
 
@@ -80,6 +79,8 @@ public class App : IDisposable
 
             updateCheckTask = null;
 
+            PowerShellSessionManager.Dispose();
+
             Config.Instance.Save();
 
             task.Wait();
@@ -150,8 +151,7 @@ public class App : IDisposable
         mainForm.Close();
     }
 
-    public readonly PowerShellSession powershellSession = new();
-    public readonly List<string> mssqlDatabases = new();
+    public readonly List<string> mssqlDatabases = [];
 
     public bool LogViewVisible { get; set; }
 

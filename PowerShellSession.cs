@@ -43,7 +43,15 @@ public class PowerShellSession : IDisposable
                 exception = exception,
             };
 
-            foreach (var error in result.errors)
+            //result.LogResult();
+            result.LogErrors();
+
+            return result;
+        }
+
+        public void LogErrors()
+        {
+            foreach (var error in errors)
             {
                 if (error.ErrorDetails?.Message is not null)
                 {
@@ -59,15 +67,43 @@ public class PowerShellSession : IDisposable
             {
                 Logger.Exception(exception);
             }
+        }
 
-            return result;
+        public void LogResult()
+        {
+            if (returnValue.Count > 0)
+            {
+                var stringResult = new System.Text.StringBuilder();
+
+                foreach (var value in returnValue)
+                {
+                    foreach (var property in value.Properties)
+                    {
+                        stringResult
+                            .Append(property.Name)
+                            .Append(": ")
+                            .Append(property.Value?.ToString());
+
+                        if (property != value.Properties.LastOrDefault())
+                        {
+                            stringResult.Append(", ");
+                        }
+                    }
+                    stringResult.AppendLine();
+                }
+
+                Logger.Result(stringResult.ToString());
+            }
         }
     }
 
-    Runspace runspace;
+    readonly Runspace runspace;
 
-    string hostname;
-    string username;
+    public string hostname { get; private set; }
+    public string username { get; private set; }
+
+    public string navAdminTool { get; private set; }
+
     object session;
 
     public bool HasSession => session is not null;
@@ -88,7 +124,7 @@ public class PowerShellSession : IDisposable
         runspace.Close();
     }
 
-    public MarkupString ToMarkup()
+    public MarkupString ToMarkupString()
     {
         if (session is null)
         {
@@ -98,7 +134,7 @@ public class PowerShellSession : IDisposable
         return new($"<span style=\"opacity: .75\">{username ?? "guest"}@</span>{hostname}");
     }
 
-    public bool BeginSession(string hostname, string username, string password)
+    public bool BeginSession(string hostname, string username, string password, string navAdminTool)
     {
         Logger.Pending("Connecting");
 
@@ -160,16 +196,22 @@ public class PowerShellSession : IDisposable
         sessionCommand.Parameters.Add("Credential", credential);
         sessionCommand.Parameters.Add("SessionOption", sessionOption);
 
-        var session = RunCommand(sessionCommand).returnValue.FirstOrDefault()?.BaseObject;
+        session = RunCommand(sessionCommand).returnValue.FirstOrDefault()?.BaseObject;
 
         if (session is null)
         {
             return false;
         }
 
+        if (navAdminTool != string.Empty)
+        {
+            RunScript($@"{{ . ""{navAdminTool}"" }}");
+        }
+
         this.hostname = hostname;
         this.username = username;
-        this.session = session;
+
+        this.navAdminTool = navAdminTool;
 
         Logger.Success("Connected");
 
@@ -208,6 +250,9 @@ public class PowerShellSession : IDisposable
 
         hostname = null;
         username = null;
+
+        navAdminTool = null;
+
         session = null;
 
         Logger.Info("Disconnected");
@@ -218,8 +263,15 @@ public class PowerShellSession : IDisposable
         var command = new Command("Get-Item");
         command.Parameters.Add("Path", @"WSMan:\localhost\Client\TrustedHosts");
 
+        var result = RunCommand(command);
+
+        if (result.returnValue is null || result.returnValue.Count == 0)
+        {
+            return [];
+        }
+
         return (
-            RunCommand(command).returnValue
+            result.returnValue
                 .Single().Properties
                 .Single(x => x.Name == "Value")
                 .Value.ToString() ?? string.Empty
@@ -229,11 +281,17 @@ public class PowerShellSession : IDisposable
             .ToList();
     }
 
+    PowerShell CreateShell()
+    {
+        var powershell = PowerShell.Create();
+        powershell.Runspace = runspace;
+        return powershell;
+    }
+
     Result RunCommand(Command command)
     {
-        using var powershell = PowerShell.Create();
+        using var powershell = CreateShell();
 
-        powershell.Runspace = runspace;
         powershell.Commands.AddCommand(command);
 
         return Result.Invoke(powershell);
@@ -241,8 +299,7 @@ public class PowerShellSession : IDisposable
 
     public Result RunScript(string scriptBlock, object[] argumentList = null)
     {
-        using var powershell = PowerShell.Create();
-        powershell.Runspace = runspace;
+        using var powershell = CreateShell();
 
         var proxy = powershell.Runspace.SessionStateProxy;
         proxy.SetVariable(nameof(session), session);
@@ -254,21 +311,13 @@ public class PowerShellSession : IDisposable
             $" -ArgumentList ${nameof(argumentList)}" +
             "";
 
-
         Logger.Script(scriptBlock);
 
         var script = $"${nameof(scriptBlock)} = {scriptBlock}\r\nInvoke-Command {args}";
 
         powershell.AddScript(script);
 
-        var result = Result.Invoke(powershell);
-
-        if (result.returnValue.Count > 0)
-        {
-            Logger.Result(string.Join("\r\n", result.returnValue));
-        }
-
-        return result;
+        return Result.Invoke(powershell);
     }
 
     public async Task<Result> RunScriptAsync(string scriptBlock, object[] argumentList = null)
@@ -276,21 +325,14 @@ public class PowerShellSession : IDisposable
         return await Task.Run(() => RunScript(scriptBlock, argumentList));
     }
 
+    public async Task<List<PSObject>> GetObjectListAsync(string scriptBlock, object[] argumentList = null)
+    {
+        return (await RunScriptAsync(scriptBlock, argumentList)).returnValue;
+    }
+
     public async Task<PSObject> GetObjectAsync(string scriptBlock, object[] argumentList = null)
     {
-        var result = await RunScriptAsync(scriptBlock, argumentList);
-        return result.returnValue.FirstOrDefault();
-    }
-
-    public async Task<string> GetStringAsync(string scriptBlock, object[] argumentList = null)
-    {
-        return (await GetObjectAsync(scriptBlock, argumentList))?.ToString();
-    }
-
-    public async Task<List<string>> GetStringListAsync(string scriptBlock, object[] argumentList = null)
-    {
-        var result = await RunScriptAsync(scriptBlock, argumentList);
-        return result.returnValue.Select(x => x?.ToString()).ToList();
+        return (await GetObjectListAsync(scriptBlock, argumentList)).FirstOrDefault();
     }
 
 }

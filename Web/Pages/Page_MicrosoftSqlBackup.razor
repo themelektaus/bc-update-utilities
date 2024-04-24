@@ -1,5 +1,5 @@
 ﻿<AssistantPage>
-    <Title>Microsoft SQL Backup<span>@App.Instance.powershellSession.ToMarkup()</span></Title>
+    <Title>Microsoft SQL Backup<span>@PowerShellSessionManager.DefaultSession.ToMarkupString()</span></Title>
     <Body>
         @if (!ready)
         {
@@ -43,7 +43,7 @@
 
         await App.Instance.IncreaseBusinessAsync();
 
-        var result = await App.Instance.powershellSession.RunScriptAsync(
+        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync(
             mssql.CreateScriptBlock(
                 command: "Invoke-Sqlcmd -Query "
                     + "\""
@@ -62,7 +62,7 @@
             {
                 dataFolder = new System.IO.FileInfo(filename).DirectoryName;
 
-                result = await App.Instance.powershellSession.RunScriptAsync(
+                result = await PowerShellSessionManager.DefaultSession.RunScriptAsync(
                     mssql.CreateScriptBlock(
                         command: $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
                     )
@@ -97,11 +97,10 @@
             $"{mssql.database}-{DateTime.Now.Ticks}.bak"
         );
 
-        await App.Instance.powershellSession.RunScriptAsync(
+        await PowerShellSessionManager.DefaultSession.RunScriptAsync(
             mssql.CreateScriptBlock(
-                command: $"Backup-SqlDatabase -BackupFile \"{backupFile}\"",
-                useCredentialArg: true,
-                addDatabaseArg: true
+                command: $"Backup-SqlDatabase -Database \"{mssql.database}\" -BackupFile \"{backupFile}\"",
+                useCredentialArg: true
             )
         );
 

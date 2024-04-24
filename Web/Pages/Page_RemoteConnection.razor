@@ -5,15 +5,15 @@
         <div data-group="Connection Informations">
             <div class="field">
                 <label>Hostname</label>
-                <Input @bind-value="rm.hostname" />
+                <Input @bind-value="remoteMachine.Hostname" />
             </div>
             <div class="field">
                 <label>Username</label>
-                <Input @bind-value="rm.username" />
+                <Input @bind-value="remoteMachine.Username" />
             </div>
             <div class="field">
                 <label>Password</label>
-                <Input @bind-value="rm.password" type="password" />
+                <Input @bind-value="remoteMachine.Password" type="password" />
             </div>
         </div>
         <br>
@@ -24,15 +24,10 @@
 
 @code {
 
-    static Config.BC.RemoteMachine rm => Config.Instance.bc.remoteMachine;
+    static Config.BC.RemoteMachine remoteMachine => Config.Instance.bc.remoteMachine;
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
-
-    protected override void OnInitialized()
-    {
-        App.Instance.powershellSession.EndSession();
-    }
 
     void Back()
     {
@@ -43,7 +38,7 @@
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        if (App.Instance.powershellSession.BeginSession(rm.hostname, rm.username, rm.password))
+        if (PowerShellSessionManager.DefaultSession.HasSession)
         {
             onNext?.Invoke();
         }

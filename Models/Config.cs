@@ -1,6 +1,5 @@
 ﻿using System.Drawing;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 
@@ -18,9 +17,9 @@ public class Config
     {
         public class RemoteMachine
         {
-            public string hostname = "localhost";
-            public string username = string.Empty;
-            public string password = string.Empty;
+            public string Hostname { get; set; } = "localhost";
+            public string Username { get; set; } = string.Empty;
+            public string Password { get; set; } = string.Empty;
         }
         public RemoteMachine remoteMachine = new();
 
@@ -40,9 +39,8 @@ public class Config
 
         public string CreateScriptBlock(
             string command,
-            bool selectName = false,
-            bool useCredentialArg = false,
-            bool addDatabaseArg = false
+            string suffix = "",
+            bool useCredentialArg = false
         )
         {
             var scriptBlock = new System.Text.StringBuilder();
@@ -58,6 +56,7 @@ public class Config
                 {
                     scriptBlock
                         .AppendLine($"$password = ConvertTo-SecureString \"{password}\" -AsPlainText -Force")
+                        .AppendLine($"$password.MakeReadOnly()")
                         .AppendLine($"$credential = New-Object System.Management.Automation.PSCredential(\"{username}\", $password)")
                         .Append(command)
                         .Append($" -Credential $credential");
@@ -72,12 +71,8 @@ public class Config
             }
 
             scriptBlock.Append($" -ServerInstance \"{hostname},{port}\"");
-
-            if (addDatabaseArg)
-                scriptBlock.Append($" -Database \"{database}\"");
-
-            if (selectName)
-                scriptBlock.Append(" | Select-Object Name");
+            scriptBlock.Append($" -TrustServerCertificate");
+            scriptBlock.Append($" {suffix}");
 
             return $"{{ {scriptBlock} }}";
         }

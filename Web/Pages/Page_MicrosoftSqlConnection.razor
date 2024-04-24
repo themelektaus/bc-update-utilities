@@ -1,5 +1,5 @@
 ﻿<AssistantPage>
-    <Title>Microsoft SQL Connection<span>@App.Instance.powershellSession.ToMarkup()</span></Title>
+    <Title>Microsoft SQL Connection<span>@PowerShellSessionManager.DefaultSession.ToMarkupString()</span></Title>
     <Body>
         <p>There isn't any description on this page yet.</p>
         <div data-group="Connection Informations">
@@ -82,11 +82,11 @@
 
         var scriptBlock = mssql.CreateScriptBlock(
             command: "Get-SqlDatabase",
-            selectName: true,
+            suffix: "| Select Name",
             useCredentialArg: true
         );
 
-        var result = await app.powershellSession.RunScriptAsync(scriptBlock);
+        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync(scriptBlock);
         app.mssqlDatabases.AddRange(result.returnValue.Select(x => (x as dynamic).Name as string));
 
         if (!app.mssqlDatabases.Contains(mssql.database))
