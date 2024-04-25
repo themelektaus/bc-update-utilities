@@ -1,0 +1,166 @@
+﻿<AssistantPage>
+    <Title>New Microsoft SQL Server<span>@session?.ToMarkupString()</span></Title>
+    <Body>
+        <p>There isn't any description on this page yet.</p>
+        <MicrosoftSqlConnection sqlServer="sqlServer" onDisconnect="this.RenderLater" />
+        @if (sqlServer.databaseNames.Count == 0)
+        {
+            return;
+        }
+        @if (sqlServer.dataFolder is null)
+        {
+            <div class="loading"></div>
+            return;
+        }
+        @if (sqlServer.backupFileNames.Count > 0)
+        {
+            <div class="table microsoft-sql-backups">
+                <div class="table-section table-section-header">
+                    <div>
+                        <div>Filename</div>
+                        <div></div>
+                    </div>
+                </div>
+                <div class="table-section table-section-content">
+                    @foreach (var backupFileName in sqlServer.backupFileNames)
+                    {
+                        <div class="microsoft-sql-backup">
+                            <div>@backupFileName</div>
+                            <div>
+                                <Button styleClass="positive" onClickAsync="() => Restore(backupFileName)">
+                                    Restore
+                                </Button>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        <style>
+            .microsoft-sql-backups .table-section > div {
+                grid-template-columns: 1fr auto;
+            }
+        </style>
+    </Body>
+    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+    <BottomRight><Button onClick="Next" isEnabled="false">Next</Button></BottomRight>
+</AssistantPage>
+
+@using Path = System.IO.Path
+
+@code {
+
+    static Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer
+    => Config.Instance.bc.remoteMachine.newServerInstance.sqlServer;
+
+    [Parameter] public Action onBack { get; set; }
+    [Parameter] public Action onNext { get; set; }
+
+    PowerShellSession session;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        session = await sqlServer.serverInstance.remoteMachine.GetSessionAsync();
+
+        await FetchBackupFilesAsync();
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task FetchBackupFilesAsync()
+    {
+        if (sqlServer.databaseNames.Count > 0)
+        {
+            await App.Instance.IncreaseBusinessAsync();
+
+            await sqlServer.FetchBackupFilesAsync();
+
+            await App.Instance.DecreaseBusinessAsync();
+        }
+    }
+
+    async Task Restore(string backupFileName)
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        (string scriptText, object[] sensitiveArgs) command;
+
+        var newDatabaseName = Path.GetFileNameWithoutExtension(backupFileName);
+
+        command = sqlServer.GenerateCommand(
+            text: $@"Invoke-Sqlcmd -Query ""ALTER DATABASE [{newDatabaseName}] SET OFFLINE WITH ROLLBACK IMMEDIATE""",
+            useCredentialArg: true
+        );
+
+        await session.RunScriptAsync(
+            command.scriptText,
+            command.sensitiveArgs
+        );
+
+        var backupFile = Path.Combine(sqlServer.dataFolder, backupFileName);
+
+        command = sqlServer.GenerateCommand(
+            text: $@"Invoke-Sqlcmd -Query ""RESTORE FILELISTONLY FROM DISK = N'{backupFile}' WITH NOUNLOAD""",
+            suffix: "| Select -Property LogicalName, PhysicalName",
+            useCredentialArg: true
+        );
+
+        var objects = await session.GetObjectListAsync(
+            command.scriptText,
+            command.sensitiveArgs
+        );
+
+        var files = new List<(string name, string path)>();
+
+        foreach (dynamic @object in objects)
+        {
+            var extension = Path.GetExtension(@object.PhysicalName).ToLower();
+            files.Add((
+                @object.LogicalName,
+                Path.Combine(sqlServer.dataFolder, newDatabaseName + extension)
+            ));
+        }
+
+        var newObject = "New-Object Microsoft.SqlServer.Management.Smo.RelocateFile";
+
+        var relocateFileArg = new List<string>();
+        var scriptText = new System.Text.StringBuilder();
+
+        for (var i = 0; i < files.Count; i++)
+        {
+            var variableName = $"${nameof(relocateFileArg)}{i}";
+            var args = $"\"{files[i].name}\", \"{files[i].path}\"";
+            relocateFileArg.Add(variableName);
+            scriptText.AppendLine($"{variableName} = {newObject}({args})");
+        }
+
+        await session.RunScriptAsync(scriptText.ToString());
+
+        command = sqlServer.GenerateCommand(
+            $"Restore-SqlDatabase -Database \"{newDatabaseName}\" -BackupFile \"{backupFile}\""
+                + $" -RelocateFile @({string.Join(',', relocateFileArg)}) -ReplaceDatabase",
+            useCredentialArg: true
+        );
+
+        await session.RunScriptAsync(
+            command.scriptText,
+            command.sensitiveArgs,
+            convertToJson: true
+        );
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    void Back()
+    {
+        onBack?.Invoke();
+    }
+
+    void Next()
+    {
+        onNext?.Invoke();
+    }
+
+}

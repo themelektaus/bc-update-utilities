@@ -24,7 +24,8 @@
 
 @code {
 
-    static Config.BC.RemoteMachine remoteMachine => Config.Instance.bc.remoteMachine;
+    static Config.BC.RemoteMachine remoteMachine
+        => Config.Instance.bc.remoteMachine;
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
@@ -38,7 +39,9 @@
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        if (PowerShellSessionManager.DefaultSession.HasSession)
+        var session = await remoteMachine.GetSessionAsync();
+
+        if (session.HasSession)
         {
             onNext?.Invoke();
         }

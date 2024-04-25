@@ -1,13 +1,13 @@
 ﻿<AssistantPage>
-    <Title>Microsoft SQL Backup<span>@PowerShellSessionManager.DefaultSession.ToMarkupString()</span></Title>
+    <Title>Microsoft SQL Backup<span>@session?.ToMarkupString()</span></Title>
     <Body>
-        @if (!ready)
+        @if (sqlServer.dataFolder is null)
         {
             <div class="loading"></div>
             return;
         }
         <p>There isn't any description on this page yet.</p>
-        @if (backupFileNames.Count > 0)
+        @if (sqlServer.backupFileNames.Count > 0)
         {
             <div class="table microsoft-sql-backups">
                 <div class="table-section table-section-header">
@@ -17,7 +17,7 @@
                     </div>
                 </div>
                 <div class="table-section table-section-content">
-                    @foreach (var backupFileName in backupFileNames)
+                    @foreach (var backupFileName in sqlServer.backupFileNames)
                     {
                         <div class="microsoft-sql-backup">
                             <div>@backupFileName</div>
@@ -36,102 +36,64 @@
                 grid-template-columns: 1fr auto;
             }
         </style>
-        <Button onClickAsync="Backup" isEnabled="dataFolder is not null">Backup</Button>
+        <Button onClickAsync="Backup" isEnabled="sqlServer.dataFolder is not null">Backup</Button>
     </Body>
     <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="backupFileNames.Count > 0">Next</Button></BottomRight>
+    <BottomRight><Button onClick="Next" isEnabled="sqlServer.backupFileNames.Count > 0">Next</Button></BottomRight>
 </AssistantPage>
 
 @code {
 
-    static Config.MSSQL mssql => Config.Instance.mssql;
+    static Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer
+        => Config.Instance.bc.remoteMachine.oldServerInstance.sqlServer;
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
 
-    bool ready;
-    string dataFolder;
-    readonly List<string> backupFileNames = new();
+    PowerShellSession session;
 
     protected override async Task OnInitializedAsync()
     {
-        await RefreshAsync();
-    }
-
-    async Task RefreshAsync()
-    {
-        ready = false;
-        dataFolder = null;
-        backupFileNames.Clear();
-
         await App.Instance.IncreaseBusinessAsync();
 
-        var session = PowerShellSessionManager.DefaultSession;
+        session = await sqlServer.serverInstance.remoteMachine.GetSessionAsync();
 
-        var command = mssql.GenerateCommand(
-            "Invoke-Sqlcmd -Query "
-                + "\""
-                + "SELECT [filename] FROM [master].[sys].[sysfiles] "
-                + "WHERE [name] = 'master'"
-                + "\""
-        );
-
-        var result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
-
-        var firstValue = result.returnValue?.FirstOrDefault();
-
-        if (firstValue is not null)
-        {
-            string filename = (firstValue as dynamic).filename;
-            if (filename is not null)
-            {
-                dataFolder = new System.IO.FileInfo(filename).DirectoryName;
-
-                command = mssql.GenerateCommand(
-                    $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
-                );
-
-                result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
-
-                foreach (var @object in result.returnValue)
-                {
-                    var x = @object as dynamic;
-                    if (x.file == 1)
-                    {
-                        string fileName = x.subdirectory;
-                        if (fileName.StartsWith(mssql.database) && fileName.EndsWith(".bak"))
-                        {
-                            backupFileNames.Add(fileName);
-                        }
-                    }
-                }
-            }
-        }
-
-        ready = true;
+        await FetchBackupFilesAsync();
 
         await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task FetchBackupFilesAsync()
+    {
+        if (sqlServer.databaseNames.Count > 0)
+        {
+            await App.Instance.IncreaseBusinessAsync();
+
+            await sqlServer.FetchBackupFilesAsync();
+
+            await App.Instance.DecreaseBusinessAsync();
+        }
     }
 
     async Task Backup()
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        var backupFileName = $"{mssql.database}-{DateTime.Now.Ticks}.bak";
-        var backupFile = System.IO.Path.Combine(dataFolder, backupFileName);
+        var backupFileName = $"{sqlServer.database}-{DateTime.Now.Ticks}.bak";
+        var backupFile = System.IO.Path.Combine(sqlServer.dataFolder, backupFileName);
 
-        var command = mssql.GenerateCommand(
-            $"Backup-SqlDatabase -Database \"{mssql.database}\" -BackupFile \"{backupFile}\"",
+        var command = sqlServer.GenerateCommand(
+            $"Backup-SqlDatabase -Database \"{sqlServer.database}\" -BackupFile \"{backupFile}\"",
             useCredentialArg: true
         );
 
-        await PowerShellSessionManager.DefaultSession.RunScriptAsync(
+        await session.RunScriptAsync(
             command.scriptText,
             command.sensitiveArgs,
             convertToJson: true
         );
 
-        await RefreshAsync();
+        await FetchBackupFilesAsync();
 
         await App.Instance.DecreaseBusinessAsync();
     }
@@ -140,7 +102,7 @@
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        var backupFile = System.IO.Path.Combine(dataFolder, backupFileName);
+        var backupFile = System.IO.Path.Combine(sqlServer.dataFolder, backupFileName);
 
         string[] lines = [
             "EXEC sp_configure ''show advanced options'', 1",
@@ -156,16 +118,16 @@
 
         foreach (var line in lines)
         {
-            var command = mssql.GenerateCommand($"Invoke-Sqlcmd -Query '{line}'");
+            var command = sqlServer.GenerateCommand($"Invoke-Sqlcmd -Query '{line}'");
 
-            await PowerShellSessionManager.DefaultSession.RunScriptAsync(
+            await session.RunScriptAsync(
                 command.scriptText,
                 command.sensitiveArgs,
                 convertToJson: true
             );
         }
 
-        await RefreshAsync();
+        await FetchBackupFilesAsync();
 
         await App.Instance.DecreaseBusinessAsync();
     }

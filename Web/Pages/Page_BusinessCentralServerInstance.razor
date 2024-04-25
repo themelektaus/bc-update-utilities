@@ -1,170 +1,36 @@
 ﻿<AssistantPage>
-    <Title>Business Central: Server Instances<span>@PowerShellSessionManager.DefaultSession.ToMarkupString()</span></Title>
+    <Title>Business Central: Server Instances<span>@session?.ToMarkupString()</span></Title>
     <Body>
-        @if (serverInstances is null)
-        {
-            <div class="loading"></div>
-            return;
-        }
-        <div data-group="Old Server Instance">
-            <div class="field">
-                <label>Shell</label>
-                <select class="interactable" value="@bc.oldShell" @onchange="OnChange_OldShell">
-                    <option></option>
-                    @foreach (var navAdminTool in serverInstances.Keys)
-                    {
-                        <option value="@navAdminTool">
-                            ..@navAdminTool[NAV_PATH.Length..]
-                        </option>
-                    }
-                </select>
-            </div>
-            <div class="field">
-                <label>Instance Name</label>
-                @if (bc.oldShell == string.Empty || serverInstances[bc.oldShell].Count == 0)
-                {
-                    <select disabled>
-                        <option>@bc.oldServerInstance</option>
-                    </select>
-                }
-                else
-                {
-                    <select class="interactable" @bind="bc.oldServerInstance">
-                        <option></option>
-                        @foreach (var serviceInstance in serverInstances[bc.oldShell])
-                        {
-                            <option>@serviceInstance</option>
-                        }
-                    </select>
-                }
-            </div>
-        </div>
-
-        <div data-group="New Server Instance">
-            <div class="field">
-                <label>Shell</label>
-                <select class="interactable" value="@bc.newShell" @onchange="OnChange_NewShell">
-                    <option></option>
-                    @foreach (var navAdminTool in serverInstances.Keys)
-                    {
-                        <option value="@navAdminTool">
-                            ..@navAdminTool[NAV_PATH.Length..]
-                        </option>
-                    }
-                </select>
-            </div>
-            <div class="field">
-                <label>Server Name</label>
-                @if (bc.newShell == string.Empty || serverInstances[bc.newShell].Count == 0)
-                {
-                    <select disabled>
-                        <option>@bc.newServerInstance</option>
-                    </select>
-                }
-                else
-                {
-                    <select class="interactable" @bind="bc.newServerInstance">
-                        <option></option>
-                        @foreach (var serviceInstance in serverInstances[bc.newShell])
-                        {
-                            <option>@serviceInstance</option>
-                        }
-                    </select>
-                }
-            </div>
-        </div>
+        <BusinessCentralServerInstance serverInstance="remoteMachine.oldServerInstance" />
+        <BusinessCentralServerInstance serverInstance="remoteMachine.newServerInstance" />
     </Body>
     <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="isNextEnabled">Next</Button></BottomRight>
+    <BottomRight><Button onClick="Next" isEnabled="false">Next</Button></BottomRight>
 </AssistantPage>
 
 @code {
 
     const string NAV_PATH = @"C:\Program Files\Microsoft Dynamics 365 Business Central";
 
-    static Config.BC bc => Config.Instance.bc;
-
-    static bool isNextEnabled
-        => bc.oldShell != string.Empty
-        && bc.oldServerInstance != string.Empty
-        && bc.newShell != string.Empty
-        && bc.newServerInstance != string.Empty;
+    static Config.BC.RemoteMachine remoteMachine
+        => Config.Instance.bc.remoteMachine;
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
 
-    Dictionary<string, List<string>> serverInstances;
-
+    PowerShellSession session;
 
     protected override async Task OnInitializedAsync()
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        this.serverInstances = null;
+        session = await remoteMachine.GetSessionAsync();
 
-        var items = await PowerShellSessionManager.DefaultSession.GetObjectListAsync(
-            $@"Get-ChildItem -Path ""{NAV_PATH}"" -Recurse -Filter ""NavAdminTool.ps1"""
-        );
-
-        var serverInstances = new Dictionary<string, List<string>>();
-
-        foreach (dynamic item in items)
+        if (remoteMachine.navAdminTools.Count == 0)
         {
-            serverInstances.Add(item.FullName as string, new());
+            await remoteMachine.FetchNavAdminToolsAsync();
         }
-
-        this.serverInstances = serverInstances;
-
-        await RefreshServerInstances(bc.oldShell);
-        await RefreshServerInstances(bc.newShell);
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
-    async Task RefreshServerInstances(string navAdminTool)
-    {
-        if (navAdminTool == string.Empty)
-        {
-            if (this.serverInstances.TryGetValue(navAdminTool, out var serverInstances))
-            {
-                serverInstances.Clear();
-            }
-            return;
-        }
-
-        await GetServerInstances(navAdminTool);
-    }
-
-    async Task OnChange_OldShell(ChangeEventArgs e)
-    {
-        bc.oldShell = e.Value?.ToString() ?? string.Empty;
-        await RefreshServerInstances(bc.oldShell);
-    }
-    
-    async Task OnChange_NewShell(ChangeEventArgs e)
-    {
-        bc.newShell = e.Value?.ToString() ?? string.Empty;
-        await RefreshServerInstances(bc.newShell);
-    }
-
-    async Task GetServerInstances(string navAdminTool)
-    {
-        await App.Instance.IncreaseBusinessAsync();
-
-        var serverInstances = this.serverInstances[navAdminTool];
-
-        serverInstances.Clear();
-
-        var session = PowerShellSessionManager.GetSession(navAdminTool);
-
-        var result = await session.RunScriptAsync("Get-NAVServerInstance");
-        var serviceInstances = result.returnValue
-            .Select(x => (x as dynamic).ServerInstance as string)
-            .Select(x => x.Split('$', 2).LastOrDefault())
-            .ToList();
-
-        serverInstances.AddRange(serviceInstances);
-
+        
         await App.Instance.DecreaseBusinessAsync();
     }
 

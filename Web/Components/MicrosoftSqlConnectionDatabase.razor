@@ -1,0 +1,32 @@
+﻿@if (sqlServer.databaseNames.Count > 0)
+{
+    <div data-group="Database">
+        <div class="field">
+            <label>Name</label>
+            <select class="interactable" @bind="sqlServer.database">
+                <option></option>
+                @foreach (var database in sqlServer.databaseNames)
+                {
+                    <option>@database</option>
+                }
+            </select>
+        </div>
+    </div>
+}
+else if (sqlServer.database != string.Empty)
+{
+    <div data-group="Database">
+        <div class="field">
+            <label>Name</label>
+            <select disabled>
+                <option>@sqlServer.database</option>
+            </select>
+        </div>
+    </div>
+}
+
+@code {
+
+    [Parameter] public Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer { get; set; }
+
+}

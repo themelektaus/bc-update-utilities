@@ -525,6 +525,14 @@ li.disabled,
                     padding: .25em .825em;
                     min-width: 0;
                 }
+
+                & > input {
+                    box-sizing: border-box;
+                    margin: 0;
+                    padding: 0 .75em;
+                    line-height: 1.5;
+                    width: 100%;
+                }
             }
         }
 

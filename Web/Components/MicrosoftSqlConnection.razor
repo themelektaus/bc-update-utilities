@@ -1,0 +1,74 @@
+﻿<div data-group="Connection Informations">
+    <div class="field">
+        <label>Hostname</label>
+        <Input @bind-value="sqlServer.hostname" />
+    </div>
+    <div class="field">
+        <label>Port</label>
+        <InputNumber @bind-value="sqlServer.port" />
+    </div>
+    <div class="field">
+        <label>Integrated Security</label>
+        <Checkbox @bind-value="sqlServer.integratedSecurity" />
+    </div>
+    <div class="field">
+        <label>Username</label>
+        <Input @bind-value="sqlServer.username" isEnabled="!sqlServer.integratedSecurity" />
+    </div>
+    <div class="field">
+        <label>Password</label>
+        <Input @bind-value="sqlServer.password" type="password" isEnabled="!sqlServer.integratedSecurity" />
+    </div>
+    <div style="margin: 0 auto; ">
+        @if (isConnected)
+        {
+            <Button onClick="Disconnect">Disconnect</Button>
+        }
+        else
+        {
+            <Button onClickAsync="ConnectAsync">Connect</Button>
+        }
+    </div>
+</div>
+
+@code {
+
+    [Parameter] public Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer { get; set; }
+
+    [Parameter] public Action onDisconnect { get; set; }
+
+    bool isConnected => sqlServer.databaseNames.Count > 0;
+
+    PowerShellSession session;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        session = await sqlServer.serverInstance.remoteMachine.GetSessionAsync();
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task ConnectAsync()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        await sqlServer.FetchDatabaseNames();
+
+        if (!sqlServer.databaseNames.Contains(sqlServer.database))
+        {
+            sqlServer.database = string.Empty;
+        }
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    void Disconnect()
+    {
+        sqlServer.databaseNames.Clear();
+
+        onDisconnect?.Invoke();
+    }
+
+}

@@ -1,0 +1,191 @@
+﻿<div class="table">
+    <div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
+        <input placeholder="Search" @bind="searchText" @bind:event="oninput">
+    </div>
+    <div class="table-section table-section-header">
+        <div>
+            <div>Key</div>
+            <div>Original Value</div>
+            <div style="margin-left: 1em; ">New Value</div>
+            <div></div>
+        </div>
+    </div>
+    <div class="table-section table-section-content">
+        @foreach (var entry in GetEntries())
+        {
+            var _entry = entry;
+            <div>
+                <div>@_entry.key</div>
+                <div>@_entry.originalValue</div>
+                <div>
+                    @if (_entry.editValue is not null)
+                    {
+                        <Input @bind-value="_entry.editValue" />
+                    }
+                    else
+                    {
+                        @if (_entry.isDirty)
+                        {
+                            <div style="padding: 0 .75em; ">@_entry.newValue</div>
+                        }
+                    }
+                </div>
+                <div style="text-align: right; ">
+                    @if (_entry.editValue is not null)
+                    {
+                        <Button onClick="() => Save(_entry)" styleClass="positive">Save</Button>
+                        <Button onClick="() => Cancel(_entry)">Cancel</Button>
+                    }
+                    else
+                    {
+                        <Button onClick="() => Edit(_entry)" styleClass="bc-conf-edit">Edit</Button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+<style>
+    .assistant-page-body-content {
+        padding-bottom: 0;
+    }
+    .assistant-page-body-inner-content {
+        flex: 1;
+        align-items: unset;
+    }
+    .table {
+        flex: 1;
+        overflow: hidden;
+    }
+    .table-section-header {
+        padding-right: 2.75em;
+    }
+    .table-section > div {
+        grid-template-columns: 2fr 1fr 1fr 10em;
+    }
+    .table-section-content > div .bc-conf-edit {
+        visibility: hidden;
+    }
+    .table-section-content > div:hover .bc-conf-edit {
+        visibility: visible;
+    }
+</style>
+
+@code {
+
+    [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
+
+    public class Entry
+    {
+        public string key;
+        public string originalValue;
+        public string newValue;
+        public bool isDirty => originalValue != newValue;
+        public string editValue;
+    }
+    readonly List<Entry> entries = new();
+
+    string searchText = string.Empty;
+
+    public List<Entry> GetAllEntries() => entries;
+
+    IEnumerable<Entry> GetEntries()
+    {
+        return entries.Where(x =>
+        {
+            if (x.key.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            if (x.originalValue.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            if (x.newValue.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+                return true;
+
+            return false;
+        }).OrderByDescending(x => x.isDirty);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        entries.Clear();
+
+        var navSession = await serverInstance.GetNavSessionAsync();
+
+        if (navSession is not null)
+        {
+            var result = await navSession.RunScriptAsync(
+                $"Get-NAVServerConfiguration -ServerInstance {serverInstance.name}"
+            );
+
+            if (!result.HasErrors)
+            {
+                dynamic list = result.returnValue.Single().BaseObject;
+
+                if (list is not null)
+                {
+                    foreach (dynamic @object in list)
+                    {
+                        var value = @object.value as string;
+                        entries.Add(new()
+                        {
+                            key = @object.key as string,
+                            originalValue = value,
+                            newValue = value,
+                        });
+                    }
+                }
+            }
+        }
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    void Edit(Entry entry)
+    {
+        entry.editValue = entry.newValue;
+        this.RenderLater();
+    }
+
+    void Save(Entry entry)
+    {
+        entry.newValue = entry.editValue;
+        Cancel(entry);
+    }
+
+    void Cancel(Entry entry)
+    {
+        entry.editValue = null;
+        this.RenderLater();
+    }
+
+    public async Task Apply()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        foreach (var entry in entries)
+        {
+            if (entry.isDirty)
+            {
+                var navSession = await serverInstance.GetNavSessionAsync();
+
+                if (navSession is not null)
+                {
+                    await navSession.RunScriptAsync(
+                        $"Set-NAVServerConfiguration -ServerInstance {serverInstance}" +
+                        $" -KeyName \"{entry.key}\" -KeyValue \"{entry.newValue}\""
+                    );
+                }
+            }
+        }
+
+        await OnInitializedAsync();
+
+        this.RenderLater();
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+}

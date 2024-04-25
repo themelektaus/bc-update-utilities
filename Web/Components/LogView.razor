@@ -5,7 +5,7 @@
         <div class="log-view-entry">
             <div class="log-view-entry-time">@entry.time</div>
             <div class="log-view-entry-type log-view-entry-type-@entry.type">@entry.type</div>
-            <div class="log-view-entry-message">@entry.htmlMessage</div>
+            <div class="log-view-entry-message">@entry.HtmlMessage</div>
         </div>
     }
 </div>
@@ -23,13 +23,13 @@
     protected override void OnInitialized()
     {
         Instances.Add(this);
-        Logger.onUpdate += Logger_OnUpdate;
+        Logger.OnUpdate += Logger_OnUpdate;
     }
 
     public void Dispose()
     {
         Instances.Remove(this);
-        Logger.onUpdate -= Logger_OnUpdate;
+        Logger.OnUpdate -= Logger_OnUpdate;
     }
 
     void Logger_OnUpdate(string type, string message)

@@ -1,109 +1,31 @@
 ﻿<AssistantPage>
-    <Title>Microsoft SQL Connection<span>@PowerShellSessionManager.DefaultSession.ToMarkupString()</span></Title>
+    <Title>Microsoft SQL Connection<span>@session?.ToMarkupString()</span></Title>
     <Body>
         <p>There isn't any description on this page yet.</p>
-        <div data-group="Connection Informations">
-            <div class="field">
-                <label>Hostname</label>
-                <Input @bind-value="mssql.hostname" />
-            </div>
-            <div class="field">
-                <label>Port</label>
-                <InputNumber @bind-value="mssql.port" />
-            </div>
-            <div class="field">
-                <label>Integrated Security</label>
-                <Checkbox @bind-value="mssql.integratedSecurity" />
-            </div>
-            <div class="field">
-                <label>Username</label>
-                <Input @bind-value="mssql.username" isEnabled="!mssql.integratedSecurity" />
-            </div>
-            <div class="field">
-                <label>Password</label>
-                <Input @bind-value="mssql.password" type="password" isEnabled="!mssql.integratedSecurity" />
-            </div>
-            <div style="margin: 0 auto; ">
-                @if (app.mssqlDatabases.Count == 0)
-                {
-                    <Button onClickAsync="Connect">Connect</Button>
-                }
-                else
-                {
-                    <Button onClick="Disconnect">Disconnect</Button>
-                }
-            </div>
-        </div>
-        @if (app.mssqlDatabases.Count > 0)
-        {
-            <div data-group="Database">
-                <div class="field">
-                    <label>Name</label>
-                    <select class="interactable" @bind="mssql.database">
-                        <option></option>
-                        @foreach (var database in app.mssqlDatabases)
-                        {
-                            <option>@database</option>
-                        }
-                    </select>
-                </div>
-            </div>
-        }
-        else if (mssql.database != string.Empty)
-        {
-            <div data-group="Database">
-                <div class="field">
-                    <label>Name</label>
-                    <select disabled>
-                        <option>@mssql.database</option>
-                    </select>
-                </div>
-            </div>
-        }
+        <MicrosoftSqlConnection sqlServer="sqlServer" onDisconnect="this.RenderLater" />
+        <MicrosoftSqlConnectionDatabase sqlServer="sqlServer" />
     </Body>
     <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="mssql.database != string.Empty">Next</Button></BottomRight>
+    <BottomRight><Button onClick="Next" isEnabled="sqlServer.database != string.Empty">Next</Button></BottomRight>
 </AssistantPage>
 
 @code {
 
-    static App app => App.Instance;
-
-    static Config.MSSQL mssql => Config.Instance.mssql;
+    static Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer
+        => Config.Instance.bc.remoteMachine.oldServerInstance.sqlServer;
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
 
-    async Task Connect()
+    PowerShellSession session;
+
+    protected override async Task OnInitializedAsync()
     {
-        await app.IncreaseBusinessAsync();
+        await App.Instance.IncreaseBusinessAsync();
 
-        Disconnect();
+        session = await sqlServer.serverInstance.remoteMachine.GetSessionAsync();
 
-        var command = mssql.GenerateCommand(
-            text: "Get-SqlDatabase",
-            suffix: " | Select Name",
-            useCredentialArg: true
-        );
-
-        var result = await PowerShellSessionManager.DefaultSession.RunScriptAsync(
-            command.scriptText,
-            command.sensitiveArgs
-        );
-
-        app.mssqlDatabases.AddRange(result.returnValue.Select(x => (x as dynamic).Name as string));
-
-        if (!app.mssqlDatabases.Contains(mssql.database))
-            mssql.database = string.Empty;
-
-        await app.DecreaseBusinessAsync();
-    }
-
-    void Disconnect()
-    {
-        app.mssqlDatabases.Clear();
-
-        this.RenderLater();
+        await App.Instance.DecreaseBusinessAsync();
     }
 
     void Back()

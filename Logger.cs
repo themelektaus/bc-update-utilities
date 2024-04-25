@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Components;
+﻿#pragma warning disable IDE0251
+
+using Microsoft.AspNetCore.Components;
 
 using System;
 using System.Collections.Generic;
@@ -16,9 +18,10 @@ public static class Logger
         public string type;
         public string message;
 
-        public MarkupString htmlMessage => new(message.ReplaceLineEndings("<br>"));
+        public MarkupString HtmlMessage => new(message.ReplaceLineEndings("<br>"));
     }
     static readonly object entriesLock = new();
+    static readonly object fileLock = new();
     static readonly List<Entry> entries = [];
 
     public static List<Entry> GetEntries()
@@ -42,7 +45,7 @@ public static class Logger
         }
     }
 
-    public static event Action<string, string> onUpdate;
+    public static event Action<string, string> OnUpdate;
 
     static readonly string file = Path.Combine(
         "logs",
@@ -71,16 +74,19 @@ public static class Logger
         };
         AddEntry(entry);
 
-        onUpdate?.Invoke(type, message);
+        OnUpdate?.Invoke(type, message);
 
-        Directory.CreateDirectory("logs");
+        lock (fileLock)
+        {
+            Directory.CreateDirectory("logs");
 
-        File.AppendAllText(
-            file,
-            "[" + entry.timestampString + "]"
-                + " [" + type + "] "
-                + entry.message
-                + Environment.NewLine
-        );
+            File.AppendAllText(
+                file,
+                "[" + entry.timestampString + "]"
+                    + " [" + type + "] "
+                    + entry.message
+                    + Environment.NewLine
+            );
+        }
     }
 }

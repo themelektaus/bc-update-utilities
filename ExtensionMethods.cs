@@ -29,7 +29,7 @@ public static class ExtensionMethods
         var method = @this.GetPrivateMethod("StateHasChanged");
         var action = new Action(() => method.Invoke(@this, null));
         var invokeMethod = @this.GetPrivateMethod("InvokeAsync", typeof(Action));
-        invokeMethod.Invoke(@this, new object[] { action });
+        invokeMethod.Invoke(@this, [action]);
     }
 
     public static MethodInfo GetPrivateMethod(this object @this, string name, params Type[] argTypes)

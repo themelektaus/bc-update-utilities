@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace BCUpdateUtilities;
 
@@ -7,12 +8,7 @@ public static class PowerShellSessionManager
 {
     static readonly List<PowerShellSession> sessions = [];
 
-    public static PowerShellSession DefaultSession => GetSession(string.Empty);
-
-    public static PowerShellSession GetSession(string navAdminTool)
-        => GetSession(Config.Instance.bc.remoteMachine, navAdminTool);
-
-    static PowerShellSession GetSession(Config.BC.RemoteMachine rm, string navAdminTool)
+    public static async Task<PowerShellSession> GetSessionAsync(Config.BC.RemoteMachine rm, string navAdminTool)
     {
         var session = sessions.FirstOrDefault(x
             => x.Hostname == rm.Hostname
@@ -24,13 +20,15 @@ public static class PowerShellSessionManager
         {
             session = new();
 
-            if (session.BeginSession(rm.Hostname, rm.Username, rm.Password, navAdminTool))
+            var sessionStarted = await Task.Run(() => session.BeginSession(rm.Hostname, rm.Username, rm.Password, navAdminTool));
+            if (sessionStarted)
             {
                 sessions.Add(session);
             }
         }
 
         return session;
+
     }
 
     public static void Dispose()

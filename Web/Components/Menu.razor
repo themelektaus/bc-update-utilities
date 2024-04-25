@@ -20,6 +20,32 @@
                 </MenuItem>
             </ul>
         </li>
+        @if (Utils.DEBUG)
+        {
+            <li class="menu-root-item">
+                Debug
+                <ul>
+                    @foreach (var pageName in new string[]
+                    {
+                        nameof(Page_BusinessCentralServerConfiguration),
+                        nameof(Page_BusinessCentralServerInstance),
+                        nameof(Page_MicrosoftSqlBackup),
+                        nameof(Page_MicrosoftSqlConnection),
+                        nameof(Page_NewMicrosoftSqlServer),
+                        nameof(Page_RemoteConnection),
+                        nameof(Page_Services),
+                        nameof(Page_Summary),
+                        nameof(Page_Welcome),
+                    })
+                    {
+                        var _pageName = pageName;
+                        <MenuItem onClick="() => root.page = _pageName">
+                            @_pageName
+                        </MenuItem>
+                    }
+                </ul>
+            </li>
+        }
     </ul>
 </div>
 
@@ -33,6 +59,7 @@
 
     App app => App.Instance;
     MainForm mainForm => app.mainForm;
+    Root root => Root.Instance;
 
     protected override void OnInitialized()
     {

@@ -1,8 +1,9 @@
-﻿using BCUpdateUtilities.Web;
+﻿#pragma warning disable CA1816
+
+using BCUpdateUtilities.Web;
 using BCUpdateUtilities.Web.Components;
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace BCUpdateUtilities;
@@ -61,33 +62,23 @@ public class App : IDisposable
             goto Loop;
         });
 
-        Logger.onUpdate += Logger_OnUpdate;
+        Logger.OnUpdate += Logger_OnUpdate;
     }
 
     public void Dispose()
     {
-        Dispose(true);
+        var task = updateCheckTask;
 
-        GC.SuppressFinalize(this);
+        updateCheckTask = null;
+
+        PowerShellSessionManager.Dispose();
+
+        Config.Instance.Save();
+
+        task.Wait();
     }
 
-    void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            var task = updateCheckTask;
-
-            updateCheckTask = null;
-
-            PowerShellSessionManager.Dispose();
-
-            Config.Instance.Save();
-
-            task.Wait();
-        }
-    }
-
-    async Task RenderRootLaterAsync()
+    static async Task RenderRootLaterAsync()
     {
         var root = Root.Instance;
         if (root is not null)
@@ -150,8 +141,6 @@ public class App : IDisposable
 
         mainForm.Close();
     }
-
-    public readonly List<string> mssqlDatabases = [];
 
     public bool LogViewVisible { get; set; }
 

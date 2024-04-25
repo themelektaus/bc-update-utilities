@@ -1,0 +1,63 @@
+﻿<div data-group="Server Instance">
+    <div class="field">
+        <label>Nav Admin Tool</label>
+        <select class="interactable" value="@serverInstance.navAdminTool" @onchange="OnChange_NavAdminTool">
+            <option></option>
+            @foreach (var navAdminTool in serverInstance.remoteMachine.navAdminTools)
+            {
+                <option value="@navAdminTool">
+                    ..@navAdminTool[Config.BC.NAV_PATH.Length..]
+                </option>
+            }
+        </select>
+    </div>
+    <div class="field">
+        <label>Name</label>
+        @if (serverInstance.serverInstanceNames.Count == 0)
+        {
+            <select disabled>
+                <option>@serverInstance.name</option>
+            </select>
+        }
+        else
+        {
+            <select class="interactable" @bind="serverInstance.name">
+                <option></option>
+                @foreach (var serverInstanceName in serverInstance.serverInstanceNames)
+                {
+                    <option>@serverInstanceName</option>
+                }
+            </select>
+        }
+    </div>
+</div>
+
+@code {
+
+    [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        await serverInstance.FetchServerInstanceNamesAsync();
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+    async Task OnChange_NavAdminTool(ChangeEventArgs e)
+    {
+        await App.Instance.IncreaseBusinessAsync();
+
+        var newValue = e.Value?.ToString() ?? string.Empty;
+
+        if (serverInstance.navAdminTool != newValue)
+        {
+            serverInstance.navAdminTool = newValue;
+            await serverInstance.FetchServerInstanceNamesAsync();
+        }
+
+        await App.Instance.DecreaseBusinessAsync();
+    }
+
+}
