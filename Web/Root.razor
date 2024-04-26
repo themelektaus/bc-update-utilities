@@ -18,31 +18,26 @@
 
             case nameof(Page_RemoteConnection):
                 <Page_RemoteConnection onBack="() => page = nameof(Page_Welcome)"
-                                       onNext="() => page = nameof(Page_Services)" />
+                                       onNext="() => page = nameof(Page_MicrosoftSqlConnection)" />
                 break;
 
             case nameof(Page_Services):
-                <Page_Services onBack="() => page = nameof(Page_RemoteConnection)"
-                               onNext="() => page = nameof(Page_MicrosoftSqlConnection)" />
+                <Page_Services />
                 break;
 
             case nameof(Page_MicrosoftSqlConnection):
-                <Page_MicrosoftSqlConnection onBack="() => page = nameof(Page_Services)"
-                                             onNext="() => page = nameof(Page_MicrosoftSqlBackup)" />
+                <Page_MicrosoftSqlConnection onBack="() => page = nameof(Page_RemoteConnection)"
+                                             onNext="() => page = nameof(Page_MicrosoftSqlBackupAndRestore)" />
                 break;
 
-            case nameof(Page_MicrosoftSqlBackup):
-                <Page_MicrosoftSqlBackup onBack="() => page = nameof(Page_MicrosoftSqlConnection)"
-                                         onNext="() => page = nameof(Page_NewMicrosoftSqlServer)" />
-                break;
-
-            case nameof(Page_NewMicrosoftSqlServer):
-                <Page_NewMicrosoftSqlServer onBack="() => page = nameof(Page_MicrosoftSqlBackup)"
-                                            onNext="() => page = nameof(Page_BusinessCentralServerInstance)" />
+            case nameof(Page_MicrosoftSqlBackupAndRestore):
+                <Page_MicrosoftSqlBackupAndRestore onBack="() => page = nameof(Page_MicrosoftSqlConnection)"
+                                                   onNext="() => page = nameof(Page_BusinessCentralServerInstance)" />
                 break;
 
             case nameof(Page_BusinessCentralServerInstance):
-                <Page_BusinessCentralServerInstance />
+                <Page_BusinessCentralServerInstance onBack="() => page = nameof(Page_MicrosoftSqlBackupAndRestore)"
+                                                    onNext="() => page = nameof(Page_BusinessCentralServerConfiguration)" />
                 break;
 
             case nameof(Page_BusinessCentralServerConfiguration):

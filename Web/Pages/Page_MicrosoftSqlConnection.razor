@@ -2,17 +2,17 @@
     <Title>Microsoft SQL Connection<span>@session?.ToMarkupString()</span></Title>
     <Body>
         <p>There isn't any description on this page yet.</p>
-        <MicrosoftSqlConnection sqlServer="sqlServer" onDisconnect="this.RenderLater" />
+        <MicrosoftSqlConnection session="session" sqlServer="sqlServer" />
         <MicrosoftSqlConnectionDatabase sqlServer="sqlServer" />
     </Body>
     <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="sqlServer.database != string.Empty">Next</Button></BottomRight>
+    <BottomRight><Button onClick="Next" isEnabled="sqlServer.oldDatabase != string.Empty && sqlServer.newDatabase != string.Empty">Next</Button></BottomRight>
 </AssistantPage>
 
 @code {
 
-    static Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer
-        => Config.Instance.bc.remoteMachine.oldServerInstance.sqlServer;
+    static Config.BC.RemoteMachine.SqlServer sqlServer
+        => Config.Instance.bc.remoteMachine.sqlServer;
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
@@ -23,7 +23,7 @@
     {
         await App.Instance.IncreaseBusinessAsync();
 
-        session = await sqlServer.serverInstance.remoteMachine.GetSessionAsync();
+        session = await sqlServer.remoteMachine.GetSessionAsync();
 
         await App.Instance.DecreaseBusinessAsync();
     }

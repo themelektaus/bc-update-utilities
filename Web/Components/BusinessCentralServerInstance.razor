@@ -1,4 +1,4 @@
-﻿<div data-group="Server Instance">
+﻿<div data-group="@groupTitle">
     <div class="field">
         <label>Nav Admin Tool</label>
         <select class="interactable" value="@serverInstance.navAdminTool" @onchange="OnChange_NavAdminTool">
@@ -21,7 +21,7 @@
         }
         else
         {
-            <select class="interactable" @bind="serverInstance.name">
+            <select class="interactable" value="@serverInstance.name" @onchange="OnChange_Name">
                 <option></option>
                 @foreach (var serverInstanceName in serverInstance.serverInstanceNames)
                 {
@@ -34,6 +34,7 @@
 
 @code {
 
+    [Parameter] public string groupTitle { get; set; }
     [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
 
     protected override async Task OnInitializedAsync()
@@ -58,6 +59,15 @@
         }
 
         await App.Instance.DecreaseBusinessAsync();
+
+        Root.Instance.RenderLater();
+    }
+
+    void OnChange_Name(ChangeEventArgs e)
+    {
+        serverInstance.name = e.Value.ToString();
+
+        Root.Instance.RenderLater();
     }
 
 }

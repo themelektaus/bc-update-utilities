@@ -63,14 +63,9 @@
             }
         </style>
     </Body>
-    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next">Next</Button></BottomRight>
 </AssistantPage>
 
 @code {
-
-    [Parameter] public Action onBack { get; set; }
-    [Parameter] public Action onNext { get; set; }
 
     PowerShellSession session;
 
@@ -106,16 +101,6 @@
 
             return false;
         });
-    }
-
-    void Back()
-    {
-        onBack?.Invoke();
-    }
-
-    void Next()
-    {
-        onNext?.Invoke();
     }
 
     protected override async Task OnInitializedAsync()

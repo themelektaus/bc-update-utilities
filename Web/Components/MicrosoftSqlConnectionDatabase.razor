@@ -1,9 +1,9 @@
 ﻿@if (sqlServer.databaseNames.Count > 0)
 {
-    <div data-group="Database">
+    <div data-group="Source Database">
         <div class="field">
             <label>Name</label>
-            <select class="interactable" @bind="sqlServer.database">
+            <select class="interactable" value="@sqlServer.oldDatabase" @onchange="OnChange">
                 <option></option>
                 @foreach (var database in sqlServer.databaseNames)
                 {
@@ -13,13 +13,13 @@
         </div>
     </div>
 }
-else if (sqlServer.database != string.Empty)
+else
 {
-    <div data-group="Database">
+    <div data-group="Source Database">
         <div class="field">
             <label>Name</label>
             <select disabled>
-                <option>@sqlServer.database</option>
+                <option>@sqlServer.oldDatabase</option>
             </select>
         </div>
     </div>
@@ -27,6 +27,14 @@ else if (sqlServer.database != string.Empty)
 
 @code {
 
-    [Parameter] public Config.BC.RemoteMachine.ServerInstance.SqlServer sqlServer { get; set; }
+    [Parameter] public Config.BC.RemoteMachine.SqlServer sqlServer { get; set; }
+    [Parameter] public EventCallback onChange { get; set; }
+
+    async Task OnChange(ChangeEventArgs e)
+    {
+        sqlServer.oldDatabase = e.Value.ToString();
+
+        await onChange.InvokeAsync();
+    }
 
 }

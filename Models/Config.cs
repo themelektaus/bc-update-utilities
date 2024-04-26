@@ -36,6 +36,16 @@ public class Config
             public ServerInstance oldServerInstance = new();
             public ServerInstance newServerInstance = new();
 
+            public SqlServer sqlServer = new();
+
+            public RemoteMachine()
+            {
+                oldServerInstance.remoteMachine = this;
+                newServerInstance.remoteMachine = this;
+
+                sqlServer.remoteMachine = this;
+            }
+
             public async Task<PowerShellSession> GetSessionAsync()
             {
                 return await PowerShellSessionManager.GetSessionAsync(this, string.Empty);
@@ -57,12 +67,6 @@ public class Config
                 }
             }
 
-            public RemoteMachine()
-            {
-                oldServerInstance.remoteMachine = this;
-                newServerInstance.remoteMachine = this;
-            }
-
             public class ServerInstance
             {
                 [JsonIgnore] public RemoteMachine remoteMachine;
@@ -71,8 +75,6 @@ public class Config
                 public string navAdminTool = string.Empty;
 
                 public List<string> serverInstanceNames = [];
-
-                public SqlServer sqlServer = new();
 
                 public async Task<PowerShellSession> GetNavSessionAsync()
                 {
@@ -100,144 +102,145 @@ public class Config
                             .ToList();
                     }
                 }
+            }
 
-                public ServerInstance()
+            public class SqlServer
+            {
+                [JsonIgnore] public RemoteMachine remoteMachine;
+
+                public string hostname = "localhost";
+                public int port = 1433;
+                public bool integratedSecurity = true;
+                public string username = "sa";
+                public string password = "";
+                public string oldDatabase = "";
+                public string newDatabase = "";
+
+                public List<string> databaseNames = [];
+                public string dataFolder;
+                public List<string> backupFileNames = [];
+
+                public (string scriptText, object[] sensitiveArgs) GenerateCommand(
+                    string text,
+                    string suffix = "",
+                    bool useCredentialArg = false
+                )
                 {
-                    sqlServer.serverInstance = this;
-                }
+                    var scriptText = new System.Text.StringBuilder();
+                    object[] sensitiveArgs;
 
-                public class SqlServer
-                {
-                    [JsonIgnore] public ServerInstance serverInstance;
-
-                    public string hostname = "localhost";
-                    public int port = 1433;
-                    public bool integratedSecurity = true;
-                    public string username = "sa";
-                    public string password = "";
-                    public string database = "";
-
-                    public List<string> databaseNames = [];
-                    public string dataFolder;
-                    public List<string> backupFileNames = [];
-
-                    public (string scriptText, object[] sensitiveArgs) GenerateCommand(
-                        string text,
-                        string suffix = "",
-                        bool useCredentialArg = false
-                    )
+                    if (integratedSecurity)
                     {
-                        var scriptText = new System.Text.StringBuilder();
-                        object[] sensitiveArgs;
+                        scriptText.Append(text);
+                        sensitiveArgs = null;
+                    }
+                    else
+                    {
+                        sensitiveArgs = [password];
 
-                        if (integratedSecurity)
+                        if (useCredentialArg)
                         {
-                            scriptText.Append(text);
-                            sensitiveArgs = null;
+                            scriptText
+                                .AppendLine("$password = ConvertTo-SecureString \"{0}\" -AsPlainText -Force")
+                                .AppendLine("$password.MakeReadOnly()")
+                                .AppendLine($"$credential = New-Object System.Management.Automation.PSCredential(\"{username}\", $password)")
+                                .Append(text)
+                                .Append($" -Credential $credential");
                         }
                         else
                         {
-                            sensitiveArgs = [password];
-
-                            if (useCredentialArg)
-                            {
-                                scriptText
-                                    .AppendLine("$password = ConvertTo-SecureString \"{0}\" -AsPlainText -Force")
-                                    .AppendLine("$password.MakeReadOnly()")
-                                    .AppendLine($"$credential = New-Object System.Management.Automation.PSCredential(\"{username}\", $password)")
-                                    .Append(text)
-                                    .Append($" -Credential $credential");
-                            }
-                            else
-                            {
-                                scriptText
-                                    .Append(text)
-                                    .Append($" -Username \"{username}\"")
-                                    .Append(" -Password \"{0}\"");
-                            }
+                            scriptText
+                                .Append(text)
+                                .Append($" -Username \"{username}\"")
+                                .Append(" -Password \"{0}\"");
                         }
-
-                        scriptText.Append($" -ServerInstance \"{hostname},{port}\"");
-                        scriptText.Append($" -TrustServerCertificate");
-                        scriptText.Append(suffix);
-
-                        return (scriptText.ToString(), sensitiveArgs);
                     }
 
-                    public async Task FetchDatabaseNames()
+                    scriptText.Append($" -ServerInstance \"{hostname},{port}\"");
+                    scriptText.Append($" -TrustServerCertificate");
+                    scriptText.Append(suffix);
+
+                    return (scriptText.ToString(), sensitiveArgs);
+                }
+
+                public async Task FetchDatabaseNames()
+                {
+                    databaseNames.Clear();
+
+                    var session = await remoteMachine.GetSessionAsync();
+
+                    var (scriptText, sensitiveArgs) = GenerateCommand(
+                        text: "Get-SqlDatabase",
+                        suffix: " | Select Name",
+                        useCredentialArg: true
+                    );
+
+                    var result = await session.RunScriptAsync(scriptText, sensitiveArgs);
+
+                    if (!result.HasErrors)
                     {
-                        databaseNames.Clear();
-
-                        var session = await serverInstance.remoteMachine.GetSessionAsync();
-
-                        var (scriptText, sensitiveArgs) = GenerateCommand(
-                            text: "Get-SqlDatabase",
-                            suffix: " | Select Name",
-                            useCredentialArg: true
+                        databaseNames.AddRange(
+                            result.returnValue.Select(x => (x as dynamic).Name as string)
                         );
 
-                        var result = await session.RunScriptAsync(scriptText, sensitiveArgs);
-
-                        if (!result.HasErrors)
+                        if (!databaseNames.Contains(oldDatabase))
                         {
-                            databaseNames.AddRange(
-                                result.returnValue.Select(x => (x as dynamic).Name as string)
+                            oldDatabase = string.Empty;
+                        }
+                    }
+                }
+
+                public async Task FetchBackupFilesAsync()
+                {
+                    this.dataFolder = null;
+                    backupFileNames.Clear();
+
+                    var session = await remoteMachine.GetSessionAsync();
+
+                    var command = GenerateCommand(
+                        "Invoke-Sqlcmd -Query "
+                            + "\""
+                            + "SELECT [filename] FROM [master].[sys].[sysfiles] "
+                            + "WHERE [name] = 'master'"
+                            + "\""
+                    );
+
+                    var result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
+
+                    var firstValue = result.returnValue?.FirstOrDefault();
+
+                    string dataFolder = null;
+
+                    if (firstValue is not null)
+                    {
+                        string filename = (firstValue as dynamic).filename;
+
+                        if (filename is not null)
+                        {
+                            dataFolder = new FileInfo(filename).DirectoryName;
+
+                            command = GenerateCommand(
+                                $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
                             );
-                        }
-                    }
 
-                    public async Task FetchBackupFilesAsync()
-                    {
-                        this.dataFolder = null;
-                        backupFileNames.Clear();
+                            result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
 
-                        var session = await serverInstance.remoteMachine.GetSessionAsync();
-
-                        var command = GenerateCommand(
-                            "Invoke-Sqlcmd -Query "
-                                + "\""
-                                + "SELECT [filename] FROM [master].[sys].[sysfiles] "
-                                + "WHERE [name] = 'master'"
-                                + "\""
-                        );
-
-                        var result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
-
-                        var firstValue = result.returnValue?.FirstOrDefault();
-
-                        string dataFolder = null;
-
-                        if (firstValue is not null)
-                        {
-                            string filename = (firstValue as dynamic).filename;
-
-                            if (filename is not null)
+                            foreach (var @object in result.returnValue)
                             {
-                                dataFolder = new FileInfo(filename).DirectoryName;
-
-                                command = GenerateCommand(
-                                    $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
-                                );
-
-                                result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
-
-                                foreach (var @object in result.returnValue)
+                                var x = @object as dynamic;
+                                if (x.file == 1)
                                 {
-                                    var x = @object as dynamic;
-                                    if (x.file == 1)
+                                    string fileName = x.subdirectory;
+                                    if (fileName.StartsWith(oldDatabase) && fileName.EndsWith(".bak"))
                                     {
-                                        string fileName = x.subdirectory;
-                                        if (fileName.StartsWith(database) && fileName.EndsWith(".bak"))
-                                        {
-                                            backupFileNames.Add(fileName);
-                                        }
+                                        backupFileNames.Add(fileName);
                                     }
                                 }
                             }
                         }
-
-                        this.dataFolder = dataFolder;
                     }
+
+                    this.dataFolder = dataFolder;
                 }
             }
         }

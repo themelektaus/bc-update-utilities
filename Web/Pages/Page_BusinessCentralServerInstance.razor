@@ -1,11 +1,16 @@
 ﻿<AssistantPage>
     <Title>Business Central: Server Instances<span>@session?.ToMarkupString()</span></Title>
     <Body>
-        <BusinessCentralServerInstance serverInstance="remoteMachine.oldServerInstance" />
-        <BusinessCentralServerInstance serverInstance="remoteMachine.newServerInstance" />
+        <BusinessCentralServerInstance groupTitle="Old Server Instance" serverInstance="remoteMachine.oldServerInstance" />
+        <BusinessCentralServerInstance groupTitle="New Server Instance" serverInstance="remoteMachine.newServerInstance" />
     </Body>
     <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="false">Next</Button></BottomRight>
+    <BottomRight>
+        <Button onClick="Next"
+                isEnabled="isNextEnabled">
+            Next
+        </Button>
+    </BottomRight>
 </AssistantPage>
 
 @code {
@@ -17,6 +22,12 @@
 
     [Parameter] public Action onBack { get; set; }
     [Parameter] public Action onNext { get; set; }
+
+    bool isNextEnabled
+        => remoteMachine.oldServerInstance.navAdminTool != string.Empty
+        && remoteMachine.oldServerInstance.name != string.Empty
+        && remoteMachine.newServerInstance.navAdminTool != string.Empty
+        && remoteMachine.newServerInstance.name != string.Empty;
 
     PowerShellSession session;
 
