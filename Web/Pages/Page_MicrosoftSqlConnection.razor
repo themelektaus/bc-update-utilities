@@ -6,7 +6,6 @@
         <span>@session?.ToMarkupString()</span>
     </Title>
     <Body>
-        <p>There isn't any description on this page yet.</p>
         <MicrosoftSqlConnection session="session" onChange="database.RenderLater" />
         <MicrosoftSqlConnectionDatabase @ref="database" />
     </Body>

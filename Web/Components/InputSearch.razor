@@ -1,9 +1,22 @@
-﻿<div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
-    <input placeholder="Search"
-           disabled="@(!isEnabled)"
-           value="@value"
-           @oninput="e => value = e.Value.ToString()">
-</div>
+﻿@if (isEnabled)
+{
+    <div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
+        <input placeholder="Search"
+               disabled="@(!isEnabled)"
+               value="@value"
+               @oninput="e => value = e.Value.ToString()">
+    </div>
+}
+else
+{
+    <div class="fixed-searchbar">
+        @foreach (var keyword in GetKeywords())
+        {
+            <div class="fixed-searchbar-item">@keyword</div>
+        }
+    </div>
+}
+
 <style>
     .assistant-page-body-content {
         padding-bottom: 0;
@@ -35,5 +48,10 @@
     [Parameter] public EventCallback<string> valueChanged { get; set; }
 
     [Parameter] public bool isEnabled { get; set; } = true;
+
+    string[] GetKeywords()
+    {
+        return value.Trim('/').Split('|');
+    }
 
 }

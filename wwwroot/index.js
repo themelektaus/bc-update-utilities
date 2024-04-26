@@ -1,5 +1,13 @@
 ﻿let $visibleMenuRootItem = null
 
+setInterval(() =>
+{
+    const rect = document.body.getBoundingClientRect();
+
+    console.log(rect)
+
+}, 100)
+
 addEventListener(`mousedown`, e =>
 {
     const $ = e.target

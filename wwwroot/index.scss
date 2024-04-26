@@ -44,6 +44,11 @@
     }
 }
 
+::placeholder {
+  color: rgba(white, .3);
+  opacity: 1;
+}
+
 input::-ms-reveal,
 input::-ms-clear {
     display: none;
@@ -70,11 +75,11 @@ button, input, select {
 }
 
 button.positive {
-    background-color: green;
+    background-color: #062;
 }
 
 button.negative {
-    background-color: darkred;
+    background-color: #633;
 }
 
 h1, h2, h3, h4, h5 {
@@ -90,8 +95,8 @@ h1 {
     & > span {
         float: right;
         color: orange;
-        font-size: 1rem;
-        translate: 0 .5em;
+        font-size: .55em;
+        translate: 0 .725em;
     }
 }
 
@@ -192,13 +197,14 @@ button {
     background-color: #357;
     filter: brightness(.875);
     outline: none;
+    cursor: pointer;
 
     &:hover {
-        filter: brightness(1.125);
+        filter: brightness(1.0125);
     }
 
     &:active:not(:disabled) {
-        filter: brightness(1.325);
+        filter: brightness(1.15);
     }
 }
 
@@ -221,20 +227,42 @@ button {
 
         & > .loading {
             position: absolute;
-            top: .1275em;
-            right: .175em;
+            top: .1em;
+            right: .1em;
             display: flex;
             justify-content: center;
             align-items: center;
             transition: .25s;
-            height: 1.25em;
+            height: 1.5em;
+            background-size: 1.5em;
+            background-repeat: no-repeat;
+            background-position-x: right;
             z-index: 3;
             opacity: 0;
+
+            &::before {
+                content: 'Processing';
+                font-size: .8em;
+                padding: .1em 2.25em 0 0;
+                animation: processing-animation .5s infinite alternate;
+                text-transform: uppercase;
+            }
         }
         
         &.disabled:not(:has([data-page] .loading)) > .loading {
             opacity: 1;
         }
+    }
+}
+
+
+@keyframes processing-animation {
+    0% {
+        opacity: .5;
+    }
+
+    100% {
+        opacity: 1;
     }
 }
 
@@ -311,7 +339,7 @@ button {
     flex: 1 0 0;
     overflow: hidden auto;
     @include display-flex-column;
-    gap: 1.25em;
+    gap: 1.5em;
     box-sizing: border-box;
     padding: 1.5em;
     margin: 0 auto .5em;
@@ -381,7 +409,7 @@ li.disabled,
 .assistant-page-body {
     flex: 1;
     @include display-flex-column;
-    gap: 1.5em;
+    gap: 1em;
     
     &-content {
         flex: 1 0 0;
@@ -394,7 +422,7 @@ li.disabled,
     &-inner-content {
         @include display-flex-column;
         align-items: center;
-        gap: 1.5em;
+        gap: 1em;
         overflow: auto;
     }
 
@@ -540,7 +568,7 @@ li.disabled,
             flex: 0;
             background-color: rgba(black, .3);
             text-transform: uppercase;
-            padding: .5em 2.5em .25em .25em;
+            padding: .125em 2.5em 0 .25em;
             
             & > div {
                 font-size: .75em;
@@ -550,17 +578,17 @@ li.disabled,
         &-content {
             flex: 1;
             overflow: hidden scroll;
-            background-color: #0002;
+            background-color: #00000929;
 
             & > div {
-                background-color: rgba(white, .05);
+                background-color: rgba(#def, .05);
                 
                 &:nth-child(odd) {
-                    background-color: rgba(white, .1);
+                    background-color: rgba(#bcf, .1);
                 }
 
                 &:hover {
-                    background-color: rgba(white, .2);
+                    background-color: rgba(#def, .15);
                 }
 
                 &:has([data-start-type="Disabled"]),
@@ -595,5 +623,35 @@ li.disabled,
                 }
             }
         }
+    }
+}
+
+.fixed-searchbar {
+    display: flex;
+    gap: .125em;
+    flex-wrap: wrap;
+    margin-bottom: .5em;
+    border: .075em solid #fff1;
+    border-radius: .5em;
+    background-color: #ffffff06;
+    padding: .5em;
+
+    &::before {
+        content: 'Keywords';
+        width: 100%;
+        padding: .125em;
+        margin-bottom: .125em;
+        color: orange;
+        text-transform: uppercase;
+        font-size: .8em;
+    }
+
+    &-item {
+        padding: .125em .5em;
+        border-radius: 100em;
+        background-color: rgba(white, .1);
+        font-size: .9em;
+        color: #ccc;
+        margin-bottom: .075em;
     }
 }
