@@ -80,18 +80,23 @@
 
     IEnumerable<Service> GetServices()
     {
+        if (!searchText.IsValidPattern(out var ignoreCase))
+        {
+            return [];
+        }
+
         return services.Where(x =>
         {
-            if (x.Name.SearchMatch(searchText))
+            if (x.Name.SearchMatch(searchText, ignoreCase))
                 return true;
 
-            if (x.DisplayName.SearchMatch(searchText))
+            if (x.DisplayName.SearchMatch(searchText, ignoreCase))
                 return true;
 
-            if (x.StartType.SearchMatch(searchText))
+            if (x.StartType.SearchMatch(searchText, ignoreCase))
                 return true;
 
-            if (x.Status.SearchMatch(searchText))
+            if (x.Status.SearchMatch(searchText, ignoreCase))
                 return true;
 
             return false;
@@ -147,8 +152,6 @@
             {
                 existingService.Object = serviceObject;
                 existingService.Status = serviceObject.Get<string>("Status");
-
-                this.RenderLater();
             }
         }
     }

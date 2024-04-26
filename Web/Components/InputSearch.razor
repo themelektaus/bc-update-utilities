@@ -1,5 +1,6 @@
 ﻿<div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
     <input placeholder="Search"
+           disabled="@(!isEnabled)"
            value="@value"
            @oninput="e => value = e.Value.ToString()">
 </div>
@@ -32,5 +33,7 @@
     }
 
     [Parameter] public EventCallback<string> valueChanged { get; set; }
+
+    [Parameter] public bool isEnabled { get; set; } = true;
 
 }

@@ -7,8 +7,8 @@
     </Title>
     <Body>
         <p>There isn't any description on this page yet.</p>
-        <MicrosoftSqlConnection session="session" />
-        <MicrosoftSqlConnectionDatabase />
+        <MicrosoftSqlConnection session="session" onChange="database.RenderLater" />
+        <MicrosoftSqlConnectionDatabase @ref="database" />
     </Body>
     <BottomLeft>
         <Button onClickAsync="GotoAsync<Page_RemoteConnection>">
@@ -24,6 +24,8 @@
 </AssistantPage>
 
 @code {
+
+    MicrosoftSqlConnectionDatabase database;
 
     bool isNextEnabled
         => sqlServer.databaseNames.Count > 0

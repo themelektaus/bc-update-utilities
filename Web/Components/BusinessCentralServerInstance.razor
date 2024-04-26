@@ -40,6 +40,8 @@
 
     [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
 
+    [Parameter] public EventCallback onChange { get; set; }
+
     protected override Task OnInitializedAsync()=> Run(async () =>
     {
         await serverInstance.FetchServerInstanceNamesAsync();
@@ -55,12 +57,16 @@
             await serverInstance.FetchServerInstanceNamesAsync();
         }
 
+        await onChange.InvokeAsync();
+
         Refresh();
     });
 
-    void OnChange_Name(ChangeEventArgs e)
+    async Task OnChange_Name(ChangeEventArgs e)
     {
         serverInstance.name = e.Value.ToString();
+
+        await onChange.InvokeAsync();
 
         Refresh();
     }

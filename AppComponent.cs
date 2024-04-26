@@ -28,8 +28,10 @@ public abstract class AppComponent : ComponentBase
         Root.Instance.Refresh();
     }
 
-    protected static Task Run(System.Func<Task> task)
+    protected async Task Run(System.Func<Task> task)
     {
-        return App.Instance.Run(task);
+        await App.Instance.Run(task);
+
+        this.RenderLater();
     }
 }

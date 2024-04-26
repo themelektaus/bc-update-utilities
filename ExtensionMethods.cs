@@ -3,7 +3,9 @@
 using Newtonsoft.Json;
 
 using System;
+using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -67,15 +69,45 @@ public static class ExtensionMethods
         return (T) @this.Properties[propertyName].Value;
     }
 
-    public static bool SearchMatch(this string @this, string pattern)
+    public static bool IsValidPattern(this string @this, out bool ignoreCase)
     {
-        var stringComparison = StringComparison.InvariantCultureIgnoreCase;
+        ignoreCase = !@this.Any(char.IsUpper);
+        return string.Empty.TrySearchMatch(@this, true, out _);
+    }
 
-        if (@this.Contains(pattern, stringComparison))
+    public static bool SearchMatch(this string @this, string pattern, bool ignoreCase)
+    {
+        @this.TrySearchMatch(pattern, ignoreCase, out var result);
+
+        return result;
+    }
+
+    static bool TrySearchMatch(this string @this, string pattern, bool ignoreCase, out bool result)
+    {
+        if (pattern.Length >= 3)
         {
-            return true;
+            if (pattern.StartsWith('/') && pattern.EndsWith('/'))
+            {
+                try
+                {
+                    result = Regex.IsMatch(@this, pattern.Trim('/'));
+                    return true;
+                }
+                catch
+                {
+                    result = false;
+                    return false;
+                }
+            }
         }
 
-        return false;
+        result = @this.Contains(
+            pattern,
+            ignoreCase
+                ? StringComparison.InvariantCultureIgnoreCase
+                : StringComparison.InvariantCulture
+        );
+
+        return true;
     }
 }

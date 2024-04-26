@@ -17,7 +17,7 @@
         <MicrosoftSqlConnectionDatabase onChange="OnChange" />
 
         <Button onClickAsync="Backup"
-                isEnabled="sqlServer.dataFolder is not null">
+                isEnabled="sqlServer.oldDatabase != string.Empty">
             Backup
         </Button>
 
@@ -71,7 +71,7 @@
         </Button>
     </BottomLeft>
     <BottomRight>
-        <Button onClickAsync="GotoAsync<Page_BusinessCentralServerInstance>"
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralOldServerInstance>"
                 isEnabled="isNextEnabled">
             Next
         </Button>

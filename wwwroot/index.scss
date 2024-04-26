@@ -504,7 +504,7 @@ li.disabled,
 .table {
     height: 100%;
     @include display-flex-column;
-
+    
     &-section {
         & > div {
             display: grid;
@@ -550,6 +550,7 @@ li.disabled,
         &-content {
             flex: 1;
             overflow: hidden scroll;
+            background-color: #0002;
 
             & > div {
                 background-color: rgba(white, .05);

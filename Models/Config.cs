@@ -223,21 +223,24 @@ public class Config
                         {
                             dataFolder = new FileInfo(filename).DirectoryName;
 
-                            script = GenerateScript(
-                                $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
-                            );
-
-                            result = await session.RunScriptAsync(script);
-
-                            foreach (var @object in result.returnValue)
+                            if (oldDatabase != string.Empty)
                             {
-                                var x = @object as dynamic;
-                                if (x.file == 1)
+                                script = GenerateScript(
+                                    $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
+                                );
+
+                                result = await session.RunScriptAsync(script);
+
+                                foreach (var @object in result.returnValue)
                                 {
-                                    string fileName = x.subdirectory;
-                                    if (fileName.StartsWith(oldDatabase) && fileName.EndsWith(".bak"))
+                                    var x = @object as dynamic;
+                                    if (x.file == 1)
                                     {
-                                        backupFileNames.Add(fileName);
+                                        string fileName = x.subdirectory;
+                                        if (fileName.StartsWith(oldDatabase) && fileName.EndsWith(".bak"))
+                                        {
+                                            backupFileNames.Add(fileName);
+                                        }
                                     }
                                 }
                             }

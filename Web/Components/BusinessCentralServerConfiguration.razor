@@ -1,13 +1,20 @@
 ﻿@inherits AppComponent
 
 <div class="table">
-    <InputSearch @bind-value="searchText" />
+    <InputSearch @bind-value="searchText" isEnabled="fixedSearchText is null" />
     <div class="table-section table-section-header">
         <div>
             <div>Key</div>
-            <div>Original Value</div>
-            <div style="margin-left: 1em; ">New Value</div>
-            <div></div>
+            @if (isReadonly)
+            {
+                <div>Value</div>
+            }
+            else
+            {
+                <div>Original Value</div>
+                <div style="margin-left: 1em; ">New Value</div>
+                <div></div>
+            }
         </div>
     </div>
     <div class="table-section table-section-content">
@@ -17,44 +24,64 @@
             <div class="@(_entry.isDirty ? "dirty" : "")">
                 <div>@_entry.key</div>
                 <div>@_entry.originalValue</div>
-                <div>
-                    @if (_entry.editValue is not null)
-                    {
-                        <Input @bind-value="_entry.editValue" />
-                    }
-                    else
-                    {
-                        @if (_entry.isDirty)
+                @if (!isReadonly)
+                {
+                    <div>
+                        @if (_entry.editValue is not null)
                         {
-                            <div style="padding: 0 .75em; ">@_entry.newValue</div>
+                            <Input @bind-value="_entry.editValue" />
                         }
-                    }
-                </div>
-                <div style="text-align: right; ">
-                    @if (_entry.editValue is not null)
-                    {
-                        <Button onClick="() => Save(_entry)" styleClass="positive">Save</Button>
-                        <Button onClick="() => Cancel(_entry)">Cancel</Button>
-                    }
-                    else
-                    {
-                        <Button onClick="() => Edit(_entry)" styleClass="bc-conf-edit">Edit</Button>
-                    }
-                </div>
+                        else
+                        {
+                            @if (_entry.isDirty)
+                            {
+                                <div style="padding: 0 .75em; ">@_entry.newValue</div>
+                            }
+                        }
+                    </div>
+                    <div style="text-align: right; ">
+                        @if (_entry.editValue is not null)
+                        {
+                            <Button onClick="() => Save(_entry)" styleClass="positive">Save</Button>
+                            <Button onClick="() => Cancel(_entry)">Cancel</Button>
+                        }
+                        else
+                        {
+                            <Button onClick="() => Edit(_entry)" styleClass="bc-conf-edit">Edit</Button>
+                        }
+                    </div>
+                }
             </div>
         }
     </div>
 </div>
+@if (isReadonly)
+{
+    <style>
+        .table-section-header {
+            padding-right: .25em;
+        }
+        .table-section > div {
+            grid-template-columns: 1fr 1fr;
+            height: 2em;
+        }
+    </style>
+}
+else
+{
+    <style>
+        .table-section-header {
+            padding-right: 2.75em;
+        }
+        .table-section > div {
+            grid-template-columns: 2fr 1fr 1fr 10em;
+        }
+    </style>
+}
 <style>
     .table {
         flex: 1;
         overflow: hidden;
-    }
-    .table-section-header {
-        padding-right: 2.75em;
-    }
-    .table-section > div {
-        grid-template-columns: 2fr 1fr 1fr 10em;
     }
     .table-section-content > .dirty {
         color: orange
@@ -71,6 +98,9 @@
 
     [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
 
+    [Parameter] public string fixedSearchText { get; set; }
+    [Parameter] public bool isReadonly { get; set; }
+
     public class Entry
     {
         public string key;
@@ -85,23 +115,36 @@
 
     IEnumerable<Entry> GetEntries()
     {
+        if (!searchText.IsValidPattern(out var ignoreCase))
+        {
+            return [];
+        }
+
         return entries.Where(x =>
         {
-            if (x.key.SearchMatch(searchText))
+            if (x.key.SearchMatch(searchText, ignoreCase))
                 return true;
 
-            if (x.originalValue.SearchMatch(searchText))
+            if (x.originalValue.SearchMatch(searchText, ignoreCase))
                 return true;
 
-            if (x.newValue.SearchMatch(searchText))
+            if (x.newValue.SearchMatch(searchText, ignoreCase))
                 return true;
 
             return false;
+
         }).OrderByDescending(x => x.isDirty);
     }
 
-    protected override Task OnInitializedAsync() => Run(async () =>
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    public Task RefreshAsync() => Run(async () =>
     {
+        if (fixedSearchText is not null)
+        {
+            searchText = fixedSearchText;
+        }
+
         entries.Clear();
 
         var navSession = await serverInstance.GetNavSessionAsync();
@@ -172,7 +215,7 @@
             }
         }
 
-        await OnInitializedAsync();
+        await RefreshAsync();
     });
 
 }

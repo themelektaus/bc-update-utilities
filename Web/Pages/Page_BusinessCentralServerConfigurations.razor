@@ -2,27 +2,17 @@
 
 <AssistantPage>
     <Title>
-        Business Central: Server Configuration
+        Business Central: Server Configurations
     </Title>
     <Body>
         <BusinessCentralServerConfiguration serverInstance="remoteMachine.oldServerInstance" />
         <BusinessCentralServerConfiguration serverInstance="remoteMachine.newServerInstance" />
     </Body>
-    <BottomLeft>
-        <Button onClickAsync="GotoAsync<Page_BusinessCentralServerInstance>">
-            Back
-        </Button>
-    </BottomLeft>
     <Bottom>
         <Button isEnabled="false">
             Apply
         </Button>
     </Bottom>
-    <BottomRight>
-        <Button onClickAsync="GotoAsync<Page_Summary>">
-            Next
-        </Button>
-    </BottomRight>
 </AssistantPage>
 
 @code {

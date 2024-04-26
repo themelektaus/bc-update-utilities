@@ -1,0 +1,68 @@
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Business Central: Old Server Instance
+        <span>@session?.ToMarkupString()</span>
+    </Title>
+    <Body>
+        <BusinessCentralServerInstance groupTitle="Old Server Instance"
+                                       serverInstance="serverInstance"
+                                       onChange="() => configuration?.RefreshAsync()" />
+        <BusinessCentralServerConfiguration @ref="configuration"
+                                            serverInstance="serverInstance"
+                                            fixedSearchText="@('/' + string.Join('|', fixedSearchText) + '/')"
+                                            isReadonly="true" />
+    </Body>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_MicrosoftSqlBackupAndRestore>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_Summary>"
+                isEnabled="isNextEnabled">
+            Next
+        </Button>
+    </BottomRight>
+</AssistantPage>
+
+@code {
+
+    static readonly string[] fixedSearchText = [
+        "Port$",
+        "^Database",
+        "^ServicesCertificate",
+        "ServicesEnabled$",
+        "SSLEnabled$",
+        "Url$",
+        "CredentialType$",
+        "EnableTaskScheduler",
+        "ExtensionAllowedTargetLevel",
+        "ExtendedSecurityTokenLifetime",
+        "CertificateValidation$",
+        "RemovalOption",
+        "UsePermissionSetsFromExtensions",
+        "SolutionVersionExtension$",
+    ];
+
+    static Config.BC.RemoteMachine.ServerInstance serverInstance
+        => remoteMachine.oldServerInstance;
+
+    BusinessCentralServerConfiguration configuration;
+
+    bool isNextEnabled
+        => serverInstance.navAdminTool != string.Empty
+        && serverInstance.name != string.Empty;
+
+    protected override async Task OnInitAsync()
+    {
+        await base.OnInitAsync();
+
+        if (remoteMachine.navAdminTools.Count == 0)
+        {
+            await remoteMachine.FetchNavAdminToolsAsync();
+        }
+    }
+
+}

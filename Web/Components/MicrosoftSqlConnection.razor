@@ -24,7 +24,7 @@
     <div style="margin: 0 auto; ">
         @if (isConnected)
         {
-            <Button onClick="Disconnect" isEnabled="session is not null">Disconnect</Button>
+            <Button onClickAsync="DisconnectAsync" isEnabled="session is not null">Disconnect</Button>
         }
         else
         {
@@ -37,18 +37,24 @@
 
     [Parameter] public PowerShellSession session { get; set; }
 
+    [Parameter] public EventCallback onChange { get; set; }
+
     bool isConnected => sqlServer.databaseNames.Count > 0;
 
     Task ConnectAsync() => Run(async () =>
     {
         await sqlServer.FetchDatabaseNames();
 
+        await onChange.InvokeAsync();
+
         Refresh();
     });
 
-    void Disconnect()
+    async Task DisconnectAsync()
     {
         sqlServer.databaseNames.Clear();
+
+        await onChange.InvokeAsync();
 
         Refresh();
     }
