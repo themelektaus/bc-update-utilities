@@ -1,19 +1,14 @@
-﻿<AssistantPage>
+﻿@inherits Page
+
+<AssistantPage>
     <Title>Welcome</Title>
     <Body>
         <p>There aren't any informations on this page yet.</p>
         <br>
     </Body>
-    <Bottom><Button onClick="Continue">Continue</Button></Bottom>
+    <Bottom>
+        <Button onClickAsync="GotoAsync<Page_RemoteConnection>">
+            Continue
+        </Button>
+    </Bottom>
 </AssistantPage>
-
-@code {
-
-    [Parameter] public Action onContinue { get; set; }
-
-    void Continue()
-    {
-        onContinue?.Invoke();
-    }
-
-}

@@ -1,41 +1,32 @@
-﻿<AssistantPage>
-    <Title>Microsoft SQL Connection<span>@session?.ToMarkupString()</span></Title>
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Microsoft SQL Connection
+        <span>@session?.ToMarkupString()</span>
+    </Title>
     <Body>
         <p>There isn't any description on this page yet.</p>
-        <MicrosoftSqlConnection session="session" sqlServer="sqlServer" />
-        <MicrosoftSqlConnectionDatabase sqlServer="sqlServer" />
+        <MicrosoftSqlConnection session="session" />
+        <MicrosoftSqlConnectionDatabase />
     </Body>
-    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="sqlServer.oldDatabase != string.Empty && sqlServer.newDatabase != string.Empty">Next</Button></BottomRight>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_RemoteConnection>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_MicrosoftSqlBackupAndRestore>"
+                isEnabled="isNextEnabled">
+            Next
+        </Button>
+    </BottomRight>
 </AssistantPage>
 
 @code {
 
-    static Config.BC.RemoteMachine.SqlServer sqlServer
-        => Config.Instance.bc.remoteMachine.sqlServer;
-
-    [Parameter] public Action onBack { get; set; }
-    [Parameter] public Action onNext { get; set; }
-
-    PowerShellSession session;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await App.Instance.IncreaseBusinessAsync();
-
-        session = await sqlServer.remoteMachine.GetSessionAsync();
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
-    void Back()
-    {
-        onBack?.Invoke();
-    }
-
-    void Next()
-    {
-        onNext?.Invoke();
-    }
+    bool isNextEnabled
+        => sqlServer.databaseNames.Count > 0
+        && sqlServer.oldDatabase != string.Empty;
 
 }

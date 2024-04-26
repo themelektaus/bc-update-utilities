@@ -1,10 +1,9 @@
-﻿
-<div id="menu">
+﻿<div id="menu">
     <ul>
         <li class="menu-root-item">
             File
             <ul>
-                <MenuItem onClick="mainForm.Close">
+                <MenuItem onClick="App.Instance.mainForm.Close">
                     Close
                 </MenuItem>
             </ul>
@@ -12,10 +11,10 @@
         <li class="menu-root-item">
             View
             <ul>
-                <MenuItem onClickAsync="app.ToggleLogViewAsync">
-                    @(app.LogViewVisible ? "Hide Log" : "Show Log")
+                <MenuItem onClickAsync="App.Instance.ToggleLogViewAsync">
+                    @(App.Instance.LogViewVisible ? "Hide Log" : "Show Log")
                 </MenuItem>
-                <MenuItem onClick="mainForm.ResetWindow">
+                <MenuItem onClick="App.Instance.mainForm.ResetWindow">
                     Reset Window
                 </MenuItem>
             </ul>
@@ -25,21 +24,10 @@
             <li class="menu-root-item">
                 Debug
                 <ul>
-                    @foreach (var pageName in new string[]
+                    @foreach (var page in pages)
                     {
-                        nameof(Page_BusinessCentralServerConfiguration),
-                        nameof(Page_BusinessCentralServerInstance),
-                        nameof(Page_MicrosoftSqlBackupAndRestore),
-                        nameof(Page_MicrosoftSqlConnection),
-                        nameof(Page_RemoteConnection),
-                        nameof(Page_Services),
-                        nameof(Page_Summary),
-                        nameof(Page_Welcome),
-                    })
-                    {
-                        var _pageName = pageName;
-                        <MenuItem onClick="() => root.page = _pageName">
-                            @_pageName
+                        <MenuItem onClickAsync="() => Root.Instance.GotoAsync(page)">
+                            @(page.Name)
                         </MenuItem>
                     }
                 </ul>
@@ -56,13 +44,22 @@
 
     public static List<Menu> Instances { get; } = new();
 
-    App app => App.Instance;
-    MainForm mainForm => app.mainForm;
-    Root root => Root.Instance;
+    readonly List<Type> pages = new();
 
     protected override void OnInitialized()
     {
         Instances.Add(this);
+
+        if (Utils.DEBUG)
+        {
+            var pageType = typeof(Page);
+            pages.AddRange(
+                pageType.Assembly
+                    .GetTypes()
+                    .Where(x => !x.IsAbstract)
+                    .Where(pageType.IsAssignableFrom)
+            );
+        }
     }
 
     public void Dispose()

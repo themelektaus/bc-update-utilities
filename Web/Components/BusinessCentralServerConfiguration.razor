@@ -1,7 +1,7 @@
-﻿<div class="table">
-    <div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
-        <input placeholder="Search" @bind="searchText" @bind:event="oninput">
-    </div>
+﻿@inherits AppComponent
+
+<div class="table">
+    <InputSearch @bind-value="searchText" />
     <div class="table-section table-section-header">
         <div>
             <div>Key</div>
@@ -14,7 +14,7 @@
         @foreach (var entry in GetEntries())
         {
             var _entry = entry;
-            <div>
+            <div class="@(_entry.isDirty ? "dirty" : "")">
                 <div>@_entry.key</div>
                 <div>@_entry.originalValue</div>
                 <div>
@@ -46,13 +46,6 @@
     </div>
 </div>
 <style>
-    .assistant-page-body-content {
-        padding-bottom: 0;
-    }
-    .assistant-page-body-inner-content {
-        flex: 1;
-        align-items: unset;
-    }
     .table {
         flex: 1;
         overflow: hidden;
@@ -62,6 +55,9 @@
     }
     .table-section > div {
         grid-template-columns: 2fr 1fr 1fr 10em;
+    }
+    .table-section-content > .dirty {
+        color: orange
     }
     .table-section-content > div .bc-conf-edit {
         visibility: hidden;
@@ -83,33 +79,29 @@
         public bool isDirty => originalValue != newValue;
         public string editValue;
     }
-    readonly List<Entry> entries = new();
+    public readonly List<Entry> entries = new();
 
     string searchText = string.Empty;
-
-    public List<Entry> GetAllEntries() => entries;
 
     IEnumerable<Entry> GetEntries()
     {
         return entries.Where(x =>
         {
-            if (x.key.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.key.SearchMatch(searchText))
                 return true;
 
-            if (x.originalValue.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.originalValue.SearchMatch(searchText))
                 return true;
 
-            if (x.newValue.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.newValue.SearchMatch(searchText))
                 return true;
 
             return false;
         }).OrderByDescending(x => x.isDirty);
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync() => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         entries.Clear();
 
         var navSession = await serverInstance.GetNavSessionAsync();
@@ -130,41 +122,40 @@
                     {
                         var value = @object.value as string;
                         entries.Add(new()
-                        {
-                            key = @object.key as string,
-                            originalValue = value,
-                            newValue = value,
-                        });
+                            {
+                                key = @object.key as string,
+                                originalValue = value,
+                                newValue = value,
+                            });
                     }
                 }
             }
         }
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
+    });
 
     void Edit(Entry entry)
     {
         entry.editValue = entry.newValue;
+
         this.RenderLater();
     }
 
     void Save(Entry entry)
     {
         entry.newValue = entry.editValue;
+
         Cancel(entry);
     }
 
     void Cancel(Entry entry)
     {
         entry.editValue = null;
+
         this.RenderLater();
     }
 
-    public async Task Apply()
+    Task Apply() => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         foreach (var entry in entries)
         {
             if (entry.isDirty)
@@ -174,18 +165,14 @@
                 if (navSession is not null)
                 {
                     await navSession.RunScriptAsync(
-                        $"Set-NAVServerConfiguration -ServerInstance {serverInstance}" +
-                        $" -KeyName \"{entry.key}\" -KeyValue \"{entry.newValue}\""
-                    );
+                    $"Set-NAVServerConfiguration -ServerInstance {serverInstance}" +
+                    $" -KeyName \"{entry.key}\" -KeyValue \"{entry.newValue}\""
+                );
                 }
             }
         }
 
         await OnInitializedAsync();
-
-        this.RenderLater();
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
+    });
 
 }

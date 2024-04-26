@@ -1,4 +1,6 @@
-﻿<AssistantPage>
+﻿@inherits Page
+
+<AssistantPage>
     <Title>Remote Connection</Title>
     <Body>
         <p>There isn't any description on this page yet.</p>
@@ -18,35 +20,28 @@
         </div>
         <br>
     </Body>
-    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClickAsync="Next">Next</Button></BottomRight>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_Welcome>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="Next">
+            Next
+        </Button>
+    </BottomRight>
 </AssistantPage>
 
 @code {
 
-    static Config.BC.RemoteMachine remoteMachine
-        => Config.Instance.bc.remoteMachine;
-
-    [Parameter] public Action onBack { get; set; }
-    [Parameter] public Action onNext { get; set; }
-
-    void Back()
+    Task Next() => Run(async () =>
     {
-        onBack?.Invoke();
-    }
-
-    async Task Next()
-    {
-        await App.Instance.IncreaseBusinessAsync();
-
         var session = await remoteMachine.GetSessionAsync();
 
         if (session.HasSession)
         {
-            onNext?.Invoke();
+            await GotoAsync<Page_MicrosoftSqlConnection>();
         }
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
+    });
 
 }

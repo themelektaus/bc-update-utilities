@@ -120,18 +120,18 @@ public class Config
                 public string dataFolder;
                 public List<string> backupFileNames = [];
 
-                public (string scriptText, object[] sensitiveArgs) GenerateCommand(
+                public PowerShellSession.Script GenerateScript(
                     string text,
                     string suffix = "",
                     bool useCredentialArg = false
                 )
                 {
-                    var scriptText = new System.Text.StringBuilder();
+                    var scriptTextBuilder = new System.Text.StringBuilder();
                     object[] sensitiveArgs;
 
                     if (integratedSecurity)
                     {
-                        scriptText.Append(text);
+                        scriptTextBuilder.Append(text);
                         sensitiveArgs = null;
                     }
                     else
@@ -140,7 +140,7 @@ public class Config
 
                         if (useCredentialArg)
                         {
-                            scriptText
+                            scriptTextBuilder
                                 .AppendLine("$password = ConvertTo-SecureString \"{0}\" -AsPlainText -Force")
                                 .AppendLine("$password.MakeReadOnly()")
                                 .AppendLine($"$credential = New-Object System.Management.Automation.PSCredential(\"{username}\", $password)")
@@ -149,18 +149,22 @@ public class Config
                         }
                         else
                         {
-                            scriptText
+                            scriptTextBuilder
                                 .Append(text)
                                 .Append($" -Username \"{username}\"")
                                 .Append(" -Password \"{0}\"");
                         }
                     }
 
-                    scriptText.Append($" -ServerInstance \"{hostname},{port}\"");
-                    scriptText.Append($" -TrustServerCertificate");
-                    scriptText.Append(suffix);
+                    scriptTextBuilder.Append($" -ServerInstance \"{hostname},{port}\"");
+                    scriptTextBuilder.Append($" -TrustServerCertificate");
+                    scriptTextBuilder.Append(suffix);
 
-                    return (scriptText.ToString(), sensitiveArgs);
+                    return new()
+                    {
+                        text = scriptTextBuilder.ToString(),
+                        options = new() { sensitiveArgs = sensitiveArgs }
+                    };
                 }
 
                 public async Task FetchDatabaseNames()
@@ -169,13 +173,13 @@ public class Config
 
                     var session = await remoteMachine.GetSessionAsync();
 
-                    var (scriptText, sensitiveArgs) = GenerateCommand(
+                    var script = GenerateScript(
                         text: "Get-SqlDatabase",
                         suffix: " | Select Name",
                         useCredentialArg: true
                     );
 
-                    var result = await session.RunScriptAsync(scriptText, sensitiveArgs);
+                    var result = await session.RunScriptAsync(script);
 
                     if (!result.HasErrors)
                     {
@@ -197,7 +201,7 @@ public class Config
 
                     var session = await remoteMachine.GetSessionAsync();
 
-                    var command = GenerateCommand(
+                    var script = GenerateScript(
                         "Invoke-Sqlcmd -Query "
                             + "\""
                             + "SELECT [filename] FROM [master].[sys].[sysfiles] "
@@ -205,7 +209,7 @@ public class Config
                             + "\""
                     );
 
-                    var result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
+                    var result = await session.RunScriptAsync(script);
 
                     var firstValue = result.returnValue?.FirstOrDefault();
 
@@ -219,11 +223,11 @@ public class Config
                         {
                             dataFolder = new FileInfo(filename).DirectoryName;
 
-                            command = GenerateCommand(
+                            script = GenerateScript(
                                 $"Invoke-Sqlcmd -Query \"EXEC xp_dirtree '{dataFolder}', 2, 1\""
                             );
 
-                            result = await session.RunScriptAsync(command.scriptText, command.sensitiveArgs);
+                            result = await session.RunScriptAsync(script);
 
                             foreach (var @object in result.returnValue)
                             {

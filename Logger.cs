@@ -1,8 +1,4 @@
-﻿#pragma warning disable IDE0251
-
-using Microsoft.AspNetCore.Components;
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 
@@ -10,6 +6,10 @@ namespace BCUpdateUtilities;
 
 public static class Logger
 {
+    static readonly object @lock = new();
+
+    static readonly List<Entry> _entries = [];
+
     public struct Entry
     {
         public DateTime timestamp;
@@ -17,31 +17,13 @@ public static class Logger
         public string time;
         public string type;
         public string message;
-
-        public MarkupString HtmlMessage => new(message.ReplaceLineEndings("<br>"));
     }
-    static readonly object entriesLock = new();
-    static readonly object fileLock = new();
-    static readonly List<Entry> entries = [];
-
+    
     public static List<Entry> GetEntries()
     {
-
-        var entries = new List<Entry>();
-
-        lock (entriesLock)
+        lock (@lock)
         {
-            entries.AddRange(Logger.entries);
-        }
-
-        return entries;
-    }
-
-    static void AddEntry(Entry entry)
-    {
-        lock (entriesLock)
-        {
-            entries.Add(entry);
+            return [.. _entries];
         }
     }
 
@@ -63,6 +45,8 @@ public static class Logger
 
     static void Log(string type, string message)
     {
+        OnUpdate?.Invoke(type, message);
+
         var timestamp = DateTime.Now;
         var entry = new Entry
         {
@@ -72,12 +56,11 @@ public static class Logger
             type = type,
             message = message
         };
-        AddEntry(entry);
 
-        OnUpdate?.Invoke(type, message);
-
-        lock (fileLock)
+        lock (@lock)
         {
+            _entries.Add(entry);
+
             Directory.CreateDirectory("logs");
 
             File.AppendAllText(

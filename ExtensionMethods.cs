@@ -3,10 +3,7 @@
 using Newtonsoft.Json;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -18,18 +15,18 @@ public static class ExtensionMethods
 {
     const Flags PRIVATE_FLAGS = Flags.Instance | Flags.NonPublic;
 
-    public static void RenderLater(this IEnumerable<ComponentBase> @this)
-    {
-        foreach (var x in @this)
-            x.RenderLater();
-    }
-
     public static void RenderLater(this ComponentBase @this)
     {
         var method = @this.GetPrivateMethod("StateHasChanged");
         var action = new Action(() => method.Invoke(@this, null));
         var invokeMethod = @this.GetPrivateMethod("InvokeAsync", typeof(Action));
         invokeMethod.Invoke(@this, [action]);
+    }
+
+    public static async Task RenderLaterAsync(this ComponentBase @this)
+    {
+        @this.RenderLater();
+        await Task.Delay(1);
     }
 
     public static MethodInfo GetPrivateMethod(this object @this, string name, params Type[] argTypes)
@@ -68,5 +65,17 @@ public static class ExtensionMethods
     public static T Get<T>(this System.Management.Automation.PSObject @this, string propertyName)
     {
         return (T) @this.Properties[propertyName].Value;
+    }
+
+    public static bool SearchMatch(this string @this, string pattern)
+    {
+        var stringComparison = StringComparison.InvariantCultureIgnoreCase;
+
+        if (@this.Contains(pattern, stringComparison))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

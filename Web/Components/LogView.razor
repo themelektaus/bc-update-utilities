@@ -1,11 +1,12 @@
-﻿
-<div @ref="logView" class="log-view">
+﻿<div @ref="logView" class="log-view">
     @foreach (var entry in Logger.GetEntries())
     {
         <div class="log-view-entry">
             <div class="log-view-entry-time">@entry.time</div>
             <div class="log-view-entry-type log-view-entry-type-@entry.type">@entry.type</div>
-            <div class="log-view-entry-message">@entry.HtmlMessage</div>
+            <div class="log-view-entry-message">
+                @(new MarkupString(entry.message.ReplaceLineEndings("<br>")))
+            </div>
         </div>
     }
 </div>
@@ -34,7 +35,7 @@
 
     void Logger_OnUpdate(string type, string message)
     {
-        InvokeAsync(StateHasChanged);
+        this.RenderLater();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

@@ -1,12 +1,21 @@
-﻿<AssistantPage>
-    <Title>Business Central: Server Instances<span>@session?.ToMarkupString()</span></Title>
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Business Central: Server Instances
+        <span>@session?.ToMarkupString()</span>
+    </Title>
     <Body>
-        <BusinessCentralServerInstance groupTitle="Old Server Instance" serverInstance="remoteMachine.oldServerInstance" />
-        <BusinessCentralServerInstance groupTitle="New Server Instance" serverInstance="remoteMachine.newServerInstance" />
+        <BusinessCentralServerInstance groupTitle="Old Server Instance"
+                                       serverInstance="serverInstance" />
     </Body>
-    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_MicrosoftSqlBackupAndRestore>">
+            Back
+        </Button>
+    </BottomLeft>
     <BottomRight>
-        <Button onClick="Next"
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralServerConfiguration>"
                 isEnabled="isNextEnabled">
             Next
         </Button>
@@ -15,44 +24,21 @@
 
 @code {
 
-    const string NAV_PATH = @"C:\Program Files\Microsoft Dynamics 365 Business Central";
-
-    static Config.BC.RemoteMachine remoteMachine
-        => Config.Instance.bc.remoteMachine;
-
-    [Parameter] public Action onBack { get; set; }
-    [Parameter] public Action onNext { get; set; }
+    static Config.BC.RemoteMachine.ServerInstance serverInstance
+        => remoteMachine.oldServerInstance;
 
     bool isNextEnabled
-        => remoteMachine.oldServerInstance.navAdminTool != string.Empty
-        && remoteMachine.oldServerInstance.name != string.Empty
-        && remoteMachine.newServerInstance.navAdminTool != string.Empty
-        && remoteMachine.newServerInstance.name != string.Empty;
+        => serverInstance.navAdminTool != string.Empty
+        && serverInstance.name != string.Empty;
 
-    PowerShellSession session;
-
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitAsync()
     {
-        await App.Instance.IncreaseBusinessAsync();
-
-        session = await remoteMachine.GetSessionAsync();
+        await base.OnInitAsync();
 
         if (remoteMachine.navAdminTools.Count == 0)
         {
             await remoteMachine.FetchNavAdminToolsAsync();
         }
-        
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
-    void Back()
-    {
-        onBack?.Invoke();
-    }
-
-    void Next()
-    {
-        onNext?.Invoke();
     }
 
 }

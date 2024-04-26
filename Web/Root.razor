@@ -1,57 +1,22 @@
-﻿
-<div id="root-content" class="@(app.IsBusy() ? "disabled" : "")">
+﻿<div id="root-content" class="@(App.Instance.IsBusy() ? "disabled" : "")">
     <div class="loading"></div>
     <Menu />
-    @if (app.Update?.available ?? false)
+    @if (App.Instance.Update?.available ?? false)
     {
         <div class="update-available-message">
             New version available<br />
-            <Button onClickAsync="app.PerformUpdate">Update</Button>
+            <Button onClickAsync="App.Instance.PerformUpdate">Update</Button>
         </div>
     }
-    <div data-page="@(page)">
-        @switch (page)
-        {
-            case nameof(Page_Welcome):
-                <Page_Welcome onContinue="() => page = nameof(Page_RemoteConnection)" />
-                break;
-
-            case nameof(Page_RemoteConnection):
-                <Page_RemoteConnection onBack="() => page = nameof(Page_Welcome)"
-                                       onNext="() => page = nameof(Page_MicrosoftSqlConnection)" />
-                break;
-
-            case nameof(Page_Services):
-                <Page_Services />
-                break;
-
-            case nameof(Page_MicrosoftSqlConnection):
-                <Page_MicrosoftSqlConnection onBack="() => page = nameof(Page_RemoteConnection)"
-                                             onNext="() => page = nameof(Page_MicrosoftSqlBackupAndRestore)" />
-                break;
-
-            case nameof(Page_MicrosoftSqlBackupAndRestore):
-                <Page_MicrosoftSqlBackupAndRestore onBack="() => page = nameof(Page_MicrosoftSqlConnection)"
-                                                   onNext="() => page = nameof(Page_BusinessCentralServerInstance)" />
-                break;
-
-            case nameof(Page_BusinessCentralServerInstance):
-                <Page_BusinessCentralServerInstance onBack="() => page = nameof(Page_MicrosoftSqlBackupAndRestore)"
-                                                    onNext="() => page = nameof(Page_BusinessCentralServerConfiguration)" />
-                break;
-
-            case nameof(Page_BusinessCentralServerConfiguration):
-                <Page_BusinessCentralServerConfiguration />
-                break;
-
-            case nameof(Page_Summary):
-                <Page_Summary onRestart="() => page = nameof(Page_RemoteConnection)" />
-                break;
-        }
-    </div>
+    @if (page is not null)
+    {
+        <div data-page="@(page)">
+            <DynamicComponent Type="page" @ref="pageComponent" />
+        </div>
+    }
 </div>
 
-@if (app.LogViewVisible)
+@if (App.Instance.LogViewVisible)
 {
     <LogView />
 }
@@ -64,40 +29,47 @@
 
     public static Root Instance { get; private set; }
 
-    static App app => App.Instance;
+    Type page = typeof(Page_Welcome);
 
-    string _page = nameof(Page_Welcome);
-
-    public string page
-    {
-        get
-        {
-            return _page;
-        }
-        set
-        {
-            if (_page == value)
-                return;
-
-            _page = value;
-
-            this.RenderLater();
-        }
-    }
+    DynamicComponent pageComponent;
 
     protected override void OnInitialized()
     {
         Instance = this;
 
-        app.mainForm.Activated += (_, _) => this.RenderLater();
+        App.Instance.mainForm.Activated += (_, _) => this.RenderLater();
     }
 
     protected override void OnAfterRender(bool firstRender)
     {
         if (firstRender)
         {
-            app.mainForm.OnAfterFirstRender();
+            App.Instance.mainForm.OnAfterFirstRender();
         }
+    }
+
+    public async Task GotoAsync(Type page)
+    {
+        this.page = page;
+
+        await this.RenderLaterAsync();
+    }
+
+    public void Refresh()
+    {
+        foreach (var menu in Menu.Instances)
+        {
+            menu.RenderLater();
+        }
+
+        var page = pageComponent?.Instance as ComponentBase;
+
+        if (page is not null)
+        {
+            page.RenderLater();
+        }
+
+        this.RenderLater();
     }
 
 }

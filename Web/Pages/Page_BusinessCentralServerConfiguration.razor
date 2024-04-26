@@ -1,11 +1,15 @@
-﻿<AssistantPage>
-    <Title>Business Central: Server Configuration<span>@session?.ToMarkupString()</span></Title>
+﻿@inherits Page
+
+<AssistantPage>
+    <Title>
+        Business Central: Server Configuration
+    </Title>
     <Body>
         <BusinessCentralServerConfiguration serverInstance="remoteMachine.oldServerInstance" />
         <BusinessCentralServerConfiguration serverInstance="remoteMachine.newServerInstance" />
     </Body>
     <BottomLeft>
-        <Button isEnabled="false">
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralServerInstance>">
             Back
         </Button>
     </BottomLeft>
@@ -15,7 +19,7 @@
         </Button>
     </Bottom>
     <BottomRight>
-        <Button isEnabled="false">
+        <Button onClickAsync="GotoAsync<Page_Summary>">
             Next
         </Button>
     </BottomRight>
@@ -23,28 +27,11 @@
 
 @code {
 
-    static Config.BC.RemoteMachine remoteMachine
-        => Config.Instance.bc.remoteMachine;
-
-    PowerShellSession session;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await App.Instance.IncreaseBusinessAsync();
-
-        session = await remoteMachine.GetSessionAsync();
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
     static void TransferBaseConfiguration(
-    BusinessCentralServerConfiguration from,
-        BusinessCentralServerConfiguration to
+        BusinessCentralServerConfiguration source,
+        BusinessCentralServerConfiguration destination
     )
     {
-        var fromEntries = from.GetAllEntries();
-        var toEntries = to.GetAllEntries();
-
         foreach (var key in new string[]
         {
             "DatabaseServer",
@@ -60,24 +47,22 @@
             "ClientServicesPort",
         })
         {
-            var fromEntry = fromEntries.FirstOrDefault(x => x.key == key);
-            var toEntry = toEntries.FirstOrDefault(x => x.key == key);
-            toEntry.newValue = fromEntry.newValue;
+            var sourceEntry = source.entries.FirstOrDefault(x => x.key == key);
+            var destinationEntry = destination.entries.FirstOrDefault(x => x.key == key);
+            sourceEntry.newValue = destinationEntry.newValue;
         }
     }
 
     static void LoadSslConfiguration(BusinessCentralServerConfiguration configuration)
     {
-        var entries = configuration.GetAllEntries();
-
         foreach (var keyValuePair in new string[][] {
             [ "ClientServicesSSLEnabled", "True" ],
             [ "SOAPServicesSSLEnabled", "True" ],
             [ "ODataServicesSSLEnabled", "True" ],
             [ "ODataServicesEnabled", "True" ]
-    })
+        })
         {
-            var entry = entries.FirstOrDefault(x => x.key == keyValuePair[0]);
+            var entry = configuration.entries.FirstOrDefault(x => x.key == keyValuePair[0]);
             entry.newValue = keyValuePair[1];
         }
     }

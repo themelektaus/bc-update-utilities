@@ -1,12 +1,31 @@
-﻿
-<input type="number" class="interactable"
-       @bind:get="value"
-       @bind:set="valueChanged.InvokeAsync"
-       @bind:event="oninput">
+﻿<input type="number"
+       class="interactable"
+       disabled="@(!isEnabled)"
+       value="@value"
+       @oninput="e => { if (int.TryParse(e.Value?.ToString() ?? string.Empty, out var x)) value = x; }">
 
 @code {
 
-    [Parameter] public int value { get; set; }
+    [Parameter] public string type { get; set; }
+
+    int _value;
+
+    [Parameter]
+    public int value
+    {
+        get => _value;
+        set
+        {
+            if (_value != value)
+            {
+                _value = value;
+                valueChanged.InvokeAsync(value);
+            }
+        }
+    }
+
     [Parameter] public EventCallback<int> valueChanged { get; set; }
+
+    [Parameter] public bool isEnabled { get; set; } = true;
 
 }

@@ -1,15 +1,19 @@
-﻿<AssistantPage>
-    <Title>Services<span>@session?.ToMarkupString()</span></Title>
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Services
+        <span>@session?.ToMarkupString()</span>
+    </Title>
     <Body>
-        @if (services is null)
+        @if (!isInitialized)
         {
-            <div class="loading"></div>
+            <Loading />
             return;
         }
+
         <div class="table services">
-            <div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
-                <input placeholder="Search" @bind="searchText" @bind:event="oninput">
-            </div>
+            <InputSearch @bind-value="searchText" />
             <div class="table-section table-section-header">
                 <div>
                     <div>Name</div>
@@ -51,13 +55,6 @@
             </div>
         </div>
         <style>
-            .assistant-page-body-content {
-                padding-bottom: 0;
-            }
-            .assistant-page-body-inner-content {
-                flex: 1;
-                align-items: unset;
-            }
             .services .table-section > div {
                 grid-template-columns: 2fr 3fr 1fr 1fr 9em;
             }
@@ -66,8 +63,6 @@
 </AssistantPage>
 
 @code {
-
-    PowerShellSession session;
 
     List<Service> services;
 
@@ -87,72 +82,62 @@
     {
         return services.Where(x =>
         {
-            if (x.Name.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.Name.SearchMatch(searchText))
                 return true;
 
-            if (x.DisplayName.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.DisplayName.SearchMatch(searchText))
                 return true;
 
-            if (x.StartType.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.StartType.SearchMatch(searchText))
                 return true;
 
-            if (x.Status.Contains(searchText, StringComparison.InvariantCultureIgnoreCase))
+            if (x.Status.SearchMatch(searchText))
                 return true;
 
             return false;
         });
     }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitAsync()
     {
-        await App.Instance.IncreaseBusinessAsync();
-
-        session = await Config.Instance.bc.remoteMachine.GetSessionAsync();
+        await base.OnInitAsync();
 
         var result = await session.RunScriptAsync("Get-Service");
 
         services = new();
         foreach (var x in result.returnValue)
             services.Add(Service.From(x));
-
-        await App.Instance.DecreaseBusinessAsync();
     }
 
-    async Task StartService(Service service)
+    Task StartService(Service service) => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         await session.RunScriptAsync(
             scriptText: "param($service) Start-Service $service",
-            argumentList: [service.Object]
+            scriptOptions: new() { argumentList = [service.Object] }
         );
 
         await RefreshService(service);
+    });
 
-        await App.Instance.DecreaseBusinessAsync();
-
-    }
-
-    async Task StopService(Service service)
+    Task StopService(Service service) => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         await session.RunScriptAsync(
             scriptText: "param($service) Stop-Service $service -Force",
-            argumentList: [service.Object]
+            scriptOptions: new() { argumentList = [service.Object] }
         );
 
         await RefreshService(service);
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
+    });
 
     async Task RefreshService(Service service)
     {
-        var serviceObject = await session.GetObjectAsync(
-            scriptText: "param($service) Get-Service $service",
-            argumentList: [service.Object]
-        );
+        var script = new PowerShellSession.Script
+        {
+            text = "param($service) Get-Service $service",
+            options = new() { argumentList = [service.Object] }
+        };
+
+        var serviceObject = await session.GetObjectAsync(script);
 
         if (serviceObject is not null)
         {

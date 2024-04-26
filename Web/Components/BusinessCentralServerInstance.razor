@@ -1,4 +1,6 @@
-﻿<div data-group="@groupTitle">
+﻿@inherits AppComponent
+
+<div data-group="@groupTitle">
     <div class="field">
         <label>Nav Admin Tool</label>
         <select class="interactable" value="@serverInstance.navAdminTool" @onchange="OnChange_NavAdminTool">
@@ -35,21 +37,16 @@
 @code {
 
     [Parameter] public string groupTitle { get; set; }
+
     [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()=> Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         await serverInstance.FetchServerInstanceNamesAsync();
+    });
 
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
-    async Task OnChange_NavAdminTool(ChangeEventArgs e)
+    Task OnChange_NavAdminTool(ChangeEventArgs e) => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         var newValue = e.Value?.ToString() ?? string.Empty;
 
         if (serverInstance.navAdminTool != newValue)
@@ -58,16 +55,14 @@
             await serverInstance.FetchServerInstanceNamesAsync();
         }
 
-        await App.Instance.DecreaseBusinessAsync();
-
-        Root.Instance.RenderLater();
-    }
+        Refresh();
+    });
 
     void OnChange_Name(ChangeEventArgs e)
     {
         serverInstance.name = e.Value.ToString();
 
-        Root.Instance.RenderLater();
+        Refresh();
     }
 
 }

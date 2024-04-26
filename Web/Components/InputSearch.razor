@@ -1,0 +1,36 @@
+﻿<div style="display: flex; margin: .125rem .125rem .5rem .125rem; ">
+    <input placeholder="Search"
+           value="@value"
+           @oninput="e => value = e.Value.ToString()">
+</div>
+<style>
+    .assistant-page-body-content {
+        padding-bottom: 0;
+    }
+    .assistant-page-body-inner-content {
+        flex: 1;
+        align-items: unset;
+    }
+</style>
+
+@code {
+
+    string _value;
+
+    [Parameter]
+    public string value
+    {
+        get => _value;
+        set
+        {
+            if (_value != value)
+            {
+                _value = value;
+                valueChanged.InvokeAsync(value);
+            }
+        }
+    }
+
+    [Parameter] public EventCallback<string> valueChanged { get; set; }
+
+}

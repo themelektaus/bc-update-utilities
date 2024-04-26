@@ -1,7 +1,4 @@
-﻿#pragma warning disable CA1816
-
-using BCUpdateUtilities.Web;
-using BCUpdateUtilities.Web.Components;
+﻿using BCUpdateUtilities.Web;
 
 using System;
 using System.Threading.Tasks;
@@ -61,8 +58,6 @@ public class App : IDisposable
 
             goto Loop;
         });
-
-        Logger.OnUpdate += Logger_OnUpdate;
     }
 
     public void Dispose()
@@ -78,16 +73,6 @@ public class App : IDisposable
         task.Wait();
     }
 
-    static async Task RenderRootLaterAsync()
-    {
-        var root = Root.Instance;
-        if (root is not null)
-        {
-            root.RenderLater();
-            await Task.Delay(1);
-        }
-    }
-
     int business;
 
     public bool IsBusy()
@@ -95,16 +80,23 @@ public class App : IDisposable
         return business > 0;
     }
 
+    public async Task Run(Func<Task> task)
+    {
+        await IncreaseBusinessAsync();
+        await task();
+        await DecreaseBusinessAsync();
+    }
+
     public async Task IncreaseBusinessAsync()
     {
         business++;
-        await RenderRootLaterAsync();
+        await (Root.Instance?.RenderLaterAsync() ?? Task.CompletedTask);
     }
 
     public async Task DecreaseBusinessAsync()
     {
         business--;
-        await RenderRootLaterAsync();
+        await (Root.Instance?.RenderLaterAsync() ?? Task.CompletedTask);
     }
 
     public async Task CheckForUpdates()
@@ -121,7 +113,7 @@ public class App : IDisposable
 
         if (updateAvailable != Update.available)
         {
-            await RenderRootLaterAsync();
+            await Root.Instance.RenderLaterAsync();
         }
     }
 
@@ -147,19 +139,6 @@ public class App : IDisposable
     public async Task ToggleLogViewAsync()
     {
         LogViewVisible = !LogViewVisible;
-        await RenderRootLaterAsync();
-    }
-
-    void Logger_OnUpdate(string type, string message)
-    {
-        if (!LogViewVisible)
-        {
-            if (type == "warning" || type == "error" || type == "exception")
-            {
-                LogViewVisible = true;
-                Menu.Instances.RenderLater();
-                Root.Instance?.RenderLater();
-            }
-        }
+        await (Root.Instance?.RenderLaterAsync() ?? Task.CompletedTask);
     }
 }

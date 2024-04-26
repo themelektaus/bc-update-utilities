@@ -1,7 +1,4 @@
-﻿#pragma warning disable CA1816
-#pragma warning disable IDE0251
-
-using Microsoft.AspNetCore.Components;
+﻿using Microsoft.AspNetCore.Components;
 
 using System;
 using System.Collections.Generic;
@@ -16,7 +13,7 @@ namespace BCUpdateUtilities;
 
 public class PowerShellSession : IDisposable
 {
-    public static readonly object @lock = new();
+    static readonly object @lock = new();
 
     const string WSMAN_PATH = @"WSMan:\localhost\Client\TrustedHosts";
 
@@ -58,7 +55,9 @@ public class PowerShellSession : IDisposable
 
         void LogResult()
         {
-            foreach (var value in returnValue.Where(x => x.TypeNames.Contains("System.String")))
+            var stringTypeName = "System.String";
+
+            foreach (var value in returnValue.Where(x => x.TypeNames.Contains(stringTypeName)))
             {
                 Logger.Result(value.ToString());
             }
@@ -286,89 +285,92 @@ public class PowerShellSession : IDisposable
             .ToList() ?? [];
     }
 
-    public Result RunScript(
+    public struct Script
+    {
+        public static implicit operator Script(string @this)
+        {
+            return new() { text = @this };
+        }
+
+        public string text;
+
+        public Options options;
+
+        public struct Options
+        {
+            public object[] sensitiveArgs;
+            public object[] argumentList;
+            public bool convertToJson;
+        }
+    }
+
+    public Task<Result> RunScriptAsync(
         string scriptText,
-        object[] sensitiveArgs = null,
-        object[] argumentList = null,
-        bool convertToJson = false
+        Script.Options scriptOptions
     )
     {
+        return RunScriptAsync(new()
+        {
+            text = scriptText,
+            options = scriptOptions
+        });
+    }
+
+    public async Task<Result> RunScriptAsync(Script script)
+    {
+        return await Task.Run(() => RunScript(script));
+    }
+
+    public async Task<List<PSObject>> GetObjectListAsync(Script script)
+    {
+        return (await RunScriptAsync(script)).returnValue;
+    }
+
+    public async Task<PSObject> GetObjectAsync(Script script)
+    {
+        return (await GetObjectListAsync(script)).FirstOrDefault();
+    }
+
+    Result RunScript(Script script)
+    {
+        var scriptText = script.text;
+
         Logger.Script(scriptText);
 
-        if (sensitiveArgs is not null)
+        if (script.options.sensitiveArgs?.Length > 0)
         {
-            scriptText = string.Format(scriptText, sensitiveArgs);
+            scriptText = string.Format(scriptText, script.options.sensitiveArgs);
         }
 
         lock (@lock)
         {
             using var powershell = CreateShell();
 
-            var proxy = powershell.Runspace.SessionStateProxy;
-            proxy.SetVariable(nameof(session), session);
-            proxy.SetVariable(nameof(argumentList), argumentList ?? []);
-
             var scriptBlock = $"{{ {scriptText} }}";
 
             var args =
                 $" -Session ${nameof(session)}" +
-                $" -ScriptBlock ${nameof(scriptBlock)}" +
-                $" -ArgumentList ${nameof(argumentList)}";
+                $" -ScriptBlock ${nameof(scriptBlock)}";
 
-            var suffix = convertToJson ? "| ConvertTo-Json -Compress" : "";
-            var script = $"${nameof(scriptBlock)} = {scriptBlock}\r\nInvoke-Command {args} {suffix}";
+            var proxy = powershell.Runspace.SessionStateProxy;
+            proxy.SetVariable(nameof(session), session);
 
-            powershell.AddScript(script);
+            var argumentList = script.options.argumentList;
+            if (argumentList?.Length > 0)
+            {
+                args += $" -ArgumentList ${nameof(argumentList)}";
+                proxy.SetVariable(nameof(argumentList), argumentList);
+            }
+
+            var suffix = script.options.convertToJson ? "| ConvertTo-Json -Compress" : "";
+
+            powershell.AddScript(
+                $"${nameof(scriptBlock)} = {scriptBlock}\r\n" +
+                $"Invoke-Command {args} {suffix}"
+            );
 
             return Result.Invoke(powershell);
         }
-    }
-
-    public async Task<Result> RunScriptAsync(
-        string scriptText,
-        object[] sensitiveArgs = null,
-        object[] argumentList = null,
-        bool convertToJson = false
-    )
-    {
-        return await Task.Run(
-            () => RunScript(
-                scriptText,
-                sensitiveArgs,
-                argumentList,
-                convertToJson
-            )
-        );
-    }
-
-    public async Task<List<PSObject>> GetObjectListAsync(
-        string scriptText,
-        object[] sensitiveArgs = null,
-        object[] argumentList = null
-    )
-    {
-        return (
-            await RunScriptAsync(
-                scriptText,
-                sensitiveArgs,
-                argumentList
-            )
-        ).returnValue;
-    }
-
-    public async Task<PSObject> GetObjectAsync(
-        string scriptText,
-        object[] sensitiveArgs = null,
-        object[] argumentList = null
-    )
-    {
-        return (
-            await GetObjectListAsync(
-                scriptText,
-                sensitiveArgs,
-                argumentList
-            )
-        ).FirstOrDefault();
     }
 
     PowerShell CreateShell()

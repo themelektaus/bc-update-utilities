@@ -1,4 +1,6 @@
-﻿@if (sqlServer.databaseNames.Count > 0)
+﻿@inherits AppComponent
+
+@if (sqlServer.databaseNames.Count > 0)
 {
     <div data-group="Source Database">
         <div class="field">
@@ -27,14 +29,15 @@ else
 
 @code {
 
-    [Parameter] public Config.BC.RemoteMachine.SqlServer sqlServer { get; set; }
-    [Parameter] public EventCallback onChange { get; set; }
+    [Parameter] public EventCallback<string> onChange { get; set; }
 
     async Task OnChange(ChangeEventArgs e)
     {
         sqlServer.oldDatabase = e.Value.ToString();
 
         await onChange.InvokeAsync();
+
+        Refresh();
     }
 
 }

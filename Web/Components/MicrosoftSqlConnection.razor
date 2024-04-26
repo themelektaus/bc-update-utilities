@@ -1,4 +1,6 @@
-﻿<div data-group="Connection Informations">
+﻿@inherits AppComponent
+
+<div data-group="Connection Informations">
     <div class="field">
         <label>Hostname</label>
         <Input @bind-value="sqlServer.hostname" />
@@ -35,24 +37,20 @@
 
     [Parameter] public PowerShellSession session { get; set; }
 
-    [Parameter] public Config.BC.RemoteMachine.SqlServer sqlServer { get; set; }
-
     bool isConnected => sqlServer.databaseNames.Count > 0;
 
-    async Task ConnectAsync()
+    Task ConnectAsync() => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         await sqlServer.FetchDatabaseNames();
 
-        await App.Instance.DecreaseBusinessAsync();
-    }
+        Refresh();
+    });
 
     void Disconnect()
     {
         sqlServer.databaseNames.Clear();
 
-        Root.Instance.RenderLater();
+        Refresh();
     }
 
 }

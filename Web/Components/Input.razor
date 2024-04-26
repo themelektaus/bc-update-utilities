@@ -1,15 +1,31 @@
-﻿
-<input type="@(type ?? "text")" class="interactable"
+﻿<input type="@(type ?? "text")"
+       class="interactable"
        disabled="@(!isEnabled)"
-       @bind:get="value"
-       @bind:set="valueChanged.InvokeAsync"
-       @bind:event="oninput">
+       value="@value"
+       @oninput="e => value = e.Value.ToString()">
 
 @code {
 
     [Parameter] public string type { get; set; }
-    [Parameter] public string value { get; set; }
+
+    string _value;
+
+    [Parameter]
+    public string value
+    {
+        get => _value;
+        set
+        {
+            if (_value != value)
+            {
+                _value = value;
+                valueChanged.InvokeAsync(value);
+            }
+        }
+    }
+
     [Parameter] public EventCallback<string> valueChanged { get; set; }
+
     [Parameter] public bool isEnabled { get; set; } = true;
 
 }

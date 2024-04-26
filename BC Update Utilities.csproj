@@ -6,6 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>Resources\Icon.ico</ApplicationIcon>
     <RootNamespace>BCUpdateUtilities</RootNamespace>
+    <NoWarn>BL0007;CA1816;IDE0251</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -1,15 +1,25 @@
-﻿<AssistantPage>
-    <Title>Microsoft SQL Backup &amp; Restore<span>@session?.ToMarkupString()</span></Title>
+﻿@using Path = System.IO.Path
+
+@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Microsoft SQL Backup &amp; Restore
+        <span>@session?.ToMarkupString()</span>
+    </Title>
     <Body>
-        @if (!initialized)
+        @if (!isInitialized)
         {
-            <div class="loading"></div>
+            <Loading />
             return;
         }
-        
-        <MicrosoftSqlConnectionDatabase sqlServer="sqlServer" onChange="OnChange" />
 
-        <Button onClickAsync="Backup" isEnabled="sqlServer.dataFolder is not null">Backup</Button>
+        <MicrosoftSqlConnectionDatabase onChange="OnChange" />
+
+        <Button onClickAsync="Backup"
+                isEnabled="sqlServer.dataFolder is not null">
+            Backup
+        </Button>
 
         @if (sqlServer.backupFileNames.Count > 0)
         {
@@ -33,10 +43,13 @@
                         <div class="microsoft-sql-backup">
                             <div>@backupFileName</div>
                             <div>
-                                <Button styleClass="positive" onClickAsync="() => Restore(backupFileName)" isEnabled="sqlServer.newDatabase != string.Empty">
+                                <Button styleClass="positive"
+                                        onClickAsync="() => Restore(backupFileName)"
+                                        isEnabled="sqlServer.newDatabase != string.Empty">
                                     Restore
                                 </Button>
-                                <Button styleClass="negative" onClickAsync="() => Delete(backupFileName)">
+                                <Button styleClass="negative"
+                                        onClickAsync="() => Delete(backupFileName)">
                                     Delete
                                 </Button>
                             </div>
@@ -52,97 +65,72 @@
         </style>
 
     </Body>
-    <BottomLeft><Button onClick="Back">Back</Button></BottomLeft>
-    <BottomRight><Button onClick="Next" isEnabled="sqlServer.backupFileNames.Count > 0 && sqlServer.newDatabase != string.Empty">Next</Button></BottomRight>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_MicrosoftSqlConnection>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralServerInstance>"
+                isEnabled="isNextEnabled">
+            Next
+        </Button>
+    </BottomRight>
 </AssistantPage>
-
-@using Path = System.IO.Path
 
 @code {
 
-    static Config.BC.RemoteMachine.SqlServer sqlServer
-        => Config.Instance.bc.remoteMachine.sqlServer;
+    bool isNextEnabled
+        => sqlServer.backupFileNames.Count > 0
+        && sqlServer.newDatabase != string.Empty;
 
-    [Parameter] public Action onBack { get; set; }
-    [Parameter] public Action onNext { get; set; }
-
-    PowerShellSession session;
-
-    bool initialized;
-
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnInitAsync()
     {
-        await App.Instance.IncreaseBusinessAsync();
-
-        session = await sqlServer.remoteMachine.GetSessionAsync();
+        await base.OnInitAsync();
 
         await sqlServer.FetchBackupFilesAsync();
-
-        await App.Instance.DecreaseBusinessAsync();
-
-        initialized = true;
     }
 
-    async Task OnChange()
+    Task OnChange() => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-        
-        await sqlServer.FetchBackupFilesAsync();
+        await OnInitAsync();
+    });
 
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
-    async Task Backup()
+    Task Backup() => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
         var backupFileName = $"{sqlServer.oldDatabase}-{DateTime.Now.Ticks}.bak";
         var backupFile = Path.Combine(sqlServer.dataFolder, backupFileName);
 
-        var command = sqlServer.GenerateCommand(
+        var script = sqlServer.GenerateScript(
             $"Backup-SqlDatabase -Database \"{sqlServer.oldDatabase}\" -BackupFile \"{backupFile}\"",
             useCredentialArg: true
         );
 
-        await session.RunScriptAsync(
-            command.scriptText,
-            command.sensitiveArgs,
-            convertToJson: true
-        );
+        script.options.convertToJson = true;
+
+        await session.RunScriptAsync(script);
 
         await sqlServer.FetchBackupFilesAsync();
+    });
 
-        await App.Instance.DecreaseBusinessAsync();
-    }
-    
-    async Task Restore(string backupFileName)
+    Task Restore(string backupFileName) => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
-        (string scriptText, object[] sensitiveArgs) command;
-
-        command = sqlServer.GenerateCommand(
+        var script = sqlServer.GenerateScript(
             text: $@"Invoke-Sqlcmd -Query ""ALTER DATABASE [{sqlServer.newDatabase}] SET OFFLINE WITH ROLLBACK IMMEDIATE""",
             useCredentialArg: true
         );
 
-        await session.RunScriptAsync(
-            command.scriptText,
-            command.sensitiveArgs
-        );
+        await session.RunScriptAsync(script);
 
         var backupFile = Path.Combine(sqlServer.dataFolder, backupFileName);
 
-        command = sqlServer.GenerateCommand(
+        script = sqlServer.GenerateScript(
             text: $@"Invoke-Sqlcmd -Query ""RESTORE FILELISTONLY FROM DISK = N'{backupFile}' WITH NOUNLOAD""",
             suffix: "| Select -Property LogicalName, PhysicalName",
             useCredentialArg: true
         );
 
-        var objects = await session.GetObjectListAsync(
-            command.scriptText,
-            command.sensitiveArgs
-        );
+        var objects = await session.GetObjectListAsync(script);
 
         var files = new List<(string name, string path)>();
 
@@ -170,26 +158,20 @@
 
         await session.RunScriptAsync(scriptText.ToString());
 
-        command = sqlServer.GenerateCommand(
+        script = sqlServer.GenerateScript(
             $"Restore-SqlDatabase -Database \"{sqlServer.newDatabase}\" -BackupFile \"{backupFile}\""
                 + $" -RelocateFile @({string.Join(',', relocateFileArg)}) -ReplaceDatabase",
             useCredentialArg: true
         );
 
-        await session.RunScriptAsync(
-            command.scriptText,
-            command.sensitiveArgs,
-            convertToJson: true
-        );
+        script.options.convertToJson = true;
 
-        await App.Instance.DecreaseBusinessAsync();
-    }
+        await session.RunScriptAsync(script);
+    });
 
-    async Task Delete(string backupFileName)
+    Task Delete(string backupFileName) => Run(async () =>
     {
-        await App.Instance.IncreaseBusinessAsync();
-
-        var backupFile = System.IO.Path.Combine(sqlServer.dataFolder, backupFileName);
+        var backupFile = Path.Combine(sqlServer.dataFolder, backupFileName);
 
         string[] lines = [
             "EXEC sp_configure ''show advanced options'', 1",
@@ -205,28 +187,12 @@
 
         foreach (var line in lines)
         {
-            var command = sqlServer.GenerateCommand($"Invoke-Sqlcmd -Query '{line}'");
-
-            await session.RunScriptAsync(
-                command.scriptText,
-                command.sensitiveArgs,
-                convertToJson: true
-            );
+            var script = sqlServer.GenerateScript($"Invoke-Sqlcmd -Query '{line}'");
+            script.options.convertToJson = true;
+            await session.RunScriptAsync(script);
         }
 
         await sqlServer.FetchBackupFilesAsync();
-
-        await App.Instance.DecreaseBusinessAsync();
-    }
-
-    void Back()
-    {
-        onBack?.Invoke();
-    }
-
-    void Next()
-    {
-        onNext?.Invoke();
-    }
+    });
 
 }
