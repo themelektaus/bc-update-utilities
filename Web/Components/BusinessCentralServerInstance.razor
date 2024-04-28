@@ -15,7 +15,11 @@
     </div>
     <div class="field">
         <label>Name</label>
-        @if (serverInstance.serverInstanceNames.Count == 0)
+        @if (creationMode)
+        {
+            <Input @bind-value="serverInstance.name" onChange="OnChange_Name" />
+        }
+        else if (serverInstance.names.Count == 0)
         {
             <select disabled>
                 <option>@serverInstance.name</option>
@@ -25,9 +29,9 @@
         {
             <select class="interactable" value="@serverInstance.name" @onchange="OnChange_Name">
                 <option></option>
-                @foreach (var serverInstanceName in serverInstance.serverInstanceNames)
+                @foreach (var name in serverInstance.names)
                 {
-                    <option>@serverInstanceName</option>
+                    <option>@name</option>
                 }
             </select>
         }
@@ -40,11 +44,13 @@
 
     [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
 
+    [Parameter] public bool creationMode { get; set; }
+
     [Parameter] public EventCallback onChange { get; set; }
 
     protected override Task OnInitializedAsync()=> Run(async () =>
     {
-        await serverInstance.FetchServerInstanceNamesAsync();
+        await FetchServerInstanceNamesAsync();
     });
 
     Task OnChange_NavAdminTool(ChangeEventArgs e) => Run(async () =>
@@ -54,13 +60,29 @@
         if (serverInstance.navAdminTool != newValue)
         {
             serverInstance.navAdminTool = newValue;
-            await serverInstance.FetchServerInstanceNamesAsync();
+            await FetchServerInstanceNamesAsync();
         }
 
         await onChange.InvokeAsync();
 
         Refresh();
     });
+
+    async Task FetchServerInstanceNamesAsync()
+    {
+        await serverInstance.FetchServerInstanceNamesAsync();
+
+        if (!creationMode)
+        {
+            if (serverInstance.names.Count > 0)
+            {
+                if (!serverInstance.names.Contains(serverInstance.name))
+                {
+                    serverInstance.name = string.Empty;
+                }
+            }
+        }
+    }
 
     async Task OnChange_Name(ChangeEventArgs e)
     {

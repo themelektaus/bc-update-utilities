@@ -1,0 +1,128 @@
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Business Central: New Server Instance
+        <span>@session?.ToMarkupString()</span>
+    </Title>
+    <Body>
+        <BusinessCentralServerInstance groupTitle="New Server Instance"
+                                       serverInstance="newServerInstance"
+                                       onChange="this.RenderLater"
+                                       creationMode="true" />
+        <div class="hidden">
+            <BusinessCentralServerConfiguration @ref="oldConfiguration"
+                                                serverInstance="oldServerInstance" />
+        </div>
+        <BusinessCentralServerConfiguration @ref="newConfiguration"
+                                            serverInstance="newServerInstance" />
+        <div class="mono">
+            @GenerateNewInstanceScriptText()
+        </div>
+        <Button onClickAsync="CreateNewInstanceAsync">
+            Create
+        </Button>
+        <Button onClickAsync="DeleteInstanceAsync">
+            Delete
+        </Button>
+    </Body>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralOldServerInstance>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_Summary>"
+                isEnabled="isNextEnabled">
+            Next
+        </Button>
+    </BottomRight>
+</AssistantPage>
+
+@code {
+
+    static Config.BC.RemoteMachine.ServerInstance oldServerInstance
+        => remoteMachine.oldServerInstance;
+
+    static Config.BC.RemoteMachine.ServerInstance newServerInstance
+        => remoteMachine.newServerInstance;
+
+    bool isNextEnabled
+        => newServerInstance.navAdminTool != string.Empty
+        && newServerInstance.name != string.Empty
+        && !newServerInstance.allNames.Contains(newServerInstance.name);
+
+    BusinessCentralServerConfiguration oldConfiguration;
+    BusinessCentralServerConfiguration newConfiguration;
+
+    protected override async Task OnInitAsync()
+    {
+        await base.OnInitAsync();
+
+        if (remoteMachine.navAdminTools.Count == 0)
+        {
+            await remoteMachine.FetchNavAdminToolsAsync();
+        }
+
+        foreach (var item in newServerInstance.configuration)
+        {
+            var oldItem = oldServerInstance.configuration.FirstOrDefault(x => x.key == item.key);
+
+            if (oldItem is null)
+            {
+                continue;
+            }
+
+            
+        }
+    }
+
+    Task CreateNewInstanceAsync() => Run(async () =>
+    {
+        var session = await newServerInstance.GetNavSessionAsync();
+
+        await session.RunScriptAsync(GenerateNewInstanceScriptText());
+    });
+
+    Task DeleteInstanceAsync() => Run(async () =>
+    {
+        var session = await newServerInstance.GetNavSessionAsync();
+
+        await session.RunScriptAsync(GenerateDeleteInstanceScriptText());
+    });
+
+    string GenerateNewInstanceScriptText()
+    {
+        var scriptText = new System.Text.StringBuilder($"New-NAVServerInstance {newServerInstance.name}");
+
+        var keys = new[]
+        {
+            "ClientServicesPort",
+            "DeveloperServicesPort",
+            "ManagementServicesPort",
+            "ODataServicesPort",
+            "SnapshotDebuggerServicesPort",
+            "SOAPServicesPort"
+        };
+
+        foreach (var key in keys)
+        {
+            var configEntry = oldServerInstance.configuration.FirstOrDefault(x => x.key == key);
+
+            if (configEntry is not null)
+            {
+                scriptText.Append($" -{key} {configEntry.value}");
+            }
+        }
+
+        //scriptText.Append(" -verbose");
+
+        return scriptText.ToString();
+    }
+
+    string GenerateDeleteInstanceScriptText()
+    {
+        return $"Remove-NAVServerInstance -ServerInstance {newServerInstance.name} -Force";
+    }
+
+}

@@ -18,36 +18,35 @@
         </div>
     </div>
     <div class="table-section table-section-content">
-        @foreach (var entry in GetEntries())
+        @foreach (var entryInfo in GetEntryInfos())
         {
-            var _entry = entry;
-            <div class="@(_entry.isDirty ? "dirty" : "")">
-                <div>@_entry.key</div>
-                <div>@_entry.originalValue</div>
+            <div class="@(entryInfo.isDirty ? "dirty" : "")">
+                <div>@entryInfo.entry.key</div>
+                <div>@entryInfo.entry.value</div>
                 @if (!isReadonly)
                 {
                     <div>
-                        @if (_entry.editValue is not null)
+                        @if (entryInfo.editValue is not null)
                         {
-                            <Input @bind-value="_entry.editValue" />
+                            <Input @bind-value="entryInfo.editValue" />
                         }
                         else
                         {
-                            @if (_entry.isDirty)
+                            @if (entryInfo.isDirty)
                             {
-                                <div style="padding: 0 .75em; ">@_entry.newValue</div>
+                                <div style="padding: 0 .75em; ">@entryInfo.newValue</div>
                             }
                         }
                     </div>
                     <div style="text-align: right; ">
-                        @if (_entry.editValue is not null)
+                        @if (entryInfo.editValue is not null)
                         {
-                            <Button onClick="() => Save(_entry)" styleClass="positive">Save</Button>
-                            <Button onClick="() => Cancel(_entry)">Cancel</Button>
+                            <Button onClick="() => Save(entryInfo)" styleClass="positive">Save</Button>
+                            <Button onClick="() => Cancel(entryInfo)">Cancel</Button>
                         }
                         else
                         {
-                            <Button onClick="() => Edit(_entry)" styleClass="bc-conf-edit">Edit</Button>
+                            <Button onClick="() => Edit(entryInfo)" styleClass="bc-conf-edit">Edit</Button>
                         }
                     </div>
                 }
@@ -101,31 +100,30 @@ else
     [Parameter] public string fixedSearchText { get; set; }
     [Parameter] public bool isReadonly { get; set; }
 
-    public class Entry
+    public class EntryInfo
     {
-        public string key;
-        public string originalValue;
+        public Config.BC.RemoteMachine.ServerInstance.ConfigEntry entry;
         public string newValue;
-        public bool isDirty => originalValue != newValue;
+        public bool isDirty => entry.value != newValue;
         public string editValue;
     }
-    public readonly List<Entry> entries = new();
+    public readonly List<EntryInfo> entryInfos = new();
 
     string searchText = string.Empty;
 
-    IEnumerable<Entry> GetEntries()
+    IEnumerable<EntryInfo> GetEntryInfos()
     {
         if (!searchText.IsValidPattern(out var ignoreCase))
         {
             return [];
         }
 
-        return entries.Where(x =>
+        return entryInfos.Where(x =>
         {
-            if (x.key.SearchMatch(searchText, ignoreCase))
+            if (x.entry.key.SearchMatch(searchText, ignoreCase))
                 return true;
 
-            if (x.originalValue.SearchMatch(searchText, ignoreCase))
+            if (x.entry.value.SearchMatch(searchText, ignoreCase))
                 return true;
 
             if (x.newValue.SearchMatch(searchText, ignoreCase))
@@ -145,14 +143,15 @@ else
             searchText = fixedSearchText;
         }
 
-        entries.Clear();
+        serverInstance.configuration.Clear();
+        entryInfos.Clear();
 
         var navSession = await serverInstance.GetNavSessionAsync();
 
         if (navSession is not null)
         {
             var result = await navSession.RunScriptAsync(
-                $"Get-NAVServerConfiguration -ServerInstance {serverInstance.name}"
+                $"Get-NAVServerConfiguration -ServerInstance \"{serverInstance.name}\""
             );
 
             if (!result.HasErrors)
@@ -163,54 +162,64 @@ else
                 {
                     foreach (dynamic @object in list)
                     {
-                        var value = @object.value as string;
-                        entries.Add(new()
-                            {
-                                key = @object.key as string,
-                                originalValue = value,
-                                newValue = value,
-                            });
+                        var entry = new Config.BC.RemoteMachine.ServerInstance.ConfigEntry
+                        {
+                            key = @object.key as string,
+                            value = @object.value as string
+                        };
+                        serverInstance.configuration.Add(entry);
+
+                        entryInfos.Add(new()
+                        {
+                            entry = @entry,
+                            newValue = @entry.value,
+                        });
                     }
                 }
             }
         }
     });
 
-    void Edit(Entry entry)
+    void Edit(EntryInfo entryInfo)
     {
-        entry.editValue = entry.newValue;
+        entryInfo.editValue = entryInfo.newValue;
 
         this.RenderLater();
     }
 
-    void Save(Entry entry)
+    void Save(EntryInfo entryInfo)
     {
-        entry.newValue = entry.editValue;
+        entryInfo.newValue = entryInfo.editValue;
 
-        Cancel(entry);
+        Cancel(entryInfo);
     }
 
-    void Cancel(Entry entry)
+    void Cancel(EntryInfo entryInfo)
     {
-        entry.editValue = null;
+        entryInfo.editValue = null;
 
         this.RenderLater();
     }
 
     Task Apply() => Run(async () =>
     {
-        foreach (var entry in entries)
+        foreach (var entryInfo in entryInfos)
         {
-            if (entry.isDirty)
+            if (entryInfo.isDirty)
             {
                 var navSession = await serverInstance.GetNavSessionAsync();
 
                 if (navSession is not null)
                 {
-                    await navSession.RunScriptAsync(
-                    $"Set-NAVServerConfiguration -ServerInstance {serverInstance}" +
-                    $" -KeyName \"{entry.key}\" -KeyValue \"{entry.newValue}\""
-                );
+                    var result = await navSession.RunScriptAsync(
+                        $"Set-NAVServerConfiguration -ServerInstance \"{serverInstance}\"" +
+                        $" -KeyName \"{entryInfo.entry.key}\" -KeyValue \"{entryInfo.newValue}\""
+                    );
+
+                    if (!result.HasErrors)
+                    {
+                        entryInfo.entry.value = entryInfo.newValue;
+                    }
                 }
             }
         }

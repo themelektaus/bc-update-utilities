@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json;
-
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -74,7 +74,29 @@ public class Config
                 public string name = string.Empty;
                 public string navAdminTool = string.Empty;
 
-                public List<string> serverInstanceNames = [];
+                public List<ConfigEntry> configuration = [];
+
+                [JsonConverter(typeof(ConfigEntryJsonConverter))]
+                public class ConfigEntry
+                {
+                    public string key;
+                    public string value;
+
+                    class ConfigEntryJsonConverter : JsonConverter<ConfigEntry>
+                    {
+                        public override ConfigEntry ReadJson(JsonReader reader, Type objectType, ConfigEntry existingValue, bool hasExistingValue, JsonSerializer _)
+                        {
+                            var x = (reader.Value as string).Split('=', 2);
+                            return new() { key = x[0], value = x[1] };
+                        }
+
+                        public override void WriteJson(JsonWriter writer, ConfigEntry value, JsonSerializer _)
+                            => writer.WriteValue($"{value.key}={value.value}");
+                    }
+                }
+
+                public List<string> allNames = [];
+                public List<string> names = [];
 
                 public async Task<PowerShellSession> GetNavSessionAsync()
                 {
@@ -88,7 +110,8 @@ public class Config
 
                 public async Task FetchServerInstanceNamesAsync()
                 {
-                    serverInstanceNames.Clear();
+                    allNames.Clear();
+                    names.Clear();
 
                     var navSession = await GetNavSessionAsync();
 
@@ -96,10 +119,26 @@ public class Config
                     {
                         var result = await navSession.RunScriptAsync("Get-NAVServerInstance");
 
-                        serverInstanceNames = result.returnValue
+                        allNames = result.returnValue
                             .Select(x => (x as dynamic).ServerInstance as string)
                             .Select(x => x.Split('$', 2).LastOrDefault())
                             .ToList();
+
+                        foreach (var name in allNames)
+                        {
+                            result = await navSession.RunScriptAsync($"Get-NAVApplication -ServerInstance \"{name}\"");
+
+                            if (result.HasErrors)
+                            {
+                                var message = result.errors.FirstOrDefault().Exception?.Message ?? string.Empty;
+                                if (!message.Contains("is not running"))
+                                {
+                                    continue;
+                                }
+                            }
+
+                            names.Add(name);
+                        }
                     }
                 }
             }

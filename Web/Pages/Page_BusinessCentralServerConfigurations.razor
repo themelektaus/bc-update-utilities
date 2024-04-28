@@ -37,9 +37,9 @@
             "ClientServicesPort",
         })
         {
-            var sourceEntry = source.entries.FirstOrDefault(x => x.key == key);
-            var destinationEntry = destination.entries.FirstOrDefault(x => x.key == key);
-            sourceEntry.newValue = destinationEntry.newValue;
+            var sourceEntryInfo = source.entryInfos.FirstOrDefault(x => x.entry.key == key);
+            var destinationEntryInfo = source.entryInfos.FirstOrDefault(x => x.entry.key == key);
+            sourceEntryInfo.newValue = destinationEntryInfo.newValue;
         }
     }
 
@@ -52,8 +52,8 @@
             [ "ODataServicesEnabled", "True" ]
         })
         {
-            var entry = configuration.entries.FirstOrDefault(x => x.key == keyValuePair[0]);
-            entry.newValue = keyValuePair[1];
+            var entryInfo = configuration.entryInfos.FirstOrDefault(x => x.entry.key == keyValuePair[0]);
+            entryInfo.newValue = keyValuePair[1];
         }
     }
 
