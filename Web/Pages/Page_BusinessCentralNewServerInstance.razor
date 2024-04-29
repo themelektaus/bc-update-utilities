@@ -11,10 +11,7 @@
                                        onChange="this.RenderLater"
                                        creationMode="true" />
         <div style="display: flex; gap: .5em; margin: auto; ">
-            <Button onClickAsync="Create" styleClass="positive">
-                Create
-            </Button>
-            <Button onClickAsync="Delete" styleClass="negative">
+            <Button onClickAsync="Delete" styleClass="negative" isEnabled="skip">
                 Delete
             </Button>
         </div>
@@ -25,10 +22,18 @@
         </Button>
     </BottomLeft>
     <BottomRight>
-        <Button onClickAsync="GotoAsync<Page_MigrateServerConfig>"
-                isEnabled="isNextEnabled">
-            Next
-        </Button>
+        @if (skip)
+        {
+            <Button onClickAsync="GotoAsync<Page_MicrosoftSqlCompatibilityLevel>" isEnabled="isNextEnabled">
+                Skip
+            </Button>
+        }
+        else
+        {
+            <Button onClickAsync="Create" styleClass="positive" isEnabled="isNextEnabled">
+                Create
+            </Button>
+        }
     </BottomRight>
 </AssistantPage>
 
@@ -39,8 +44,10 @@
 
     bool isNextEnabled
         => newServerInstance.navAdminTool != string.Empty
-        && newServerInstance.name != string.Empty
-        && !newServerInstance.allNames.Contains(newServerInstance.name);
+        && newServerInstance.name != string.Empty;
+
+    bool skip
+        => newServerInstance.allNames.Contains(newServerInstance.name);
 
     protected override async Task OnInitAsync()
     {
@@ -50,19 +57,23 @@
         {
             await remoteMachine.FetchNavAdminToolsAsync();
         }
+
+        this.RenderLater();
     }
 
-    async Task Create()
+    Task Create() => Run(async () =>
     {
         await NewServerAsync();
         await NewWebServerAsync();
-    }
+        await GotoAsync<Page_MigrateServerConfig>();
+    });
 
-    async Task Delete()
+    Task Delete() => Run(async () =>
     {
         await RemoveServerAsync();
         await RemoveWebServerAsync();
-    }
+        await newServerInstance.FetchServerInstanceNamesAsync();
+    });
 
     Task NewServerAsync() => Run(async () =>
     {
@@ -134,7 +145,7 @@
     string ScriptText_RemoveServer()
     {
         return "Remove-NAVServerInstance"
-            + $" -ServerInstance \"{newServerInstance.name}\" "
+            + $" -ServerInstance \"{newServerInstance.name}\""
             + $" -Force";
     }
 
@@ -150,8 +161,7 @@
     string ScriptText_RemoveWebServer()
     {
         return "Remove-NAVWebServerInstance"
-            + $" -WebServerInstance {newServerInstance.name}"
-            + $" -Force";
+            + $" -WebServerInstance {newServerInstance.name}";
     }
 
 }

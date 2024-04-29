@@ -51,6 +51,10 @@
     protected override Task OnInitializedAsync()=> Run(async () =>
     {
         await FetchServerInstanceNamesAsync();
+
+        await onChange.InvokeAsync();
+
+        Refresh();
     });
 
     Task OnChange_NavAdminTool(ChangeEventArgs e) => Run(async () =>

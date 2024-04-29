@@ -35,7 +35,7 @@
 
     void Logger_OnUpdate(string type, string message)
     {
-        this.RenderLater();
+        Task.Run(this.RenderLaterAsync);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

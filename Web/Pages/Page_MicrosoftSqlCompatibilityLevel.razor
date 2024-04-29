@@ -1,0 +1,76 @@
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Microsoft SQL Compatibility Level
+        <span>@session?.ToMarkupString()</span>
+    </Title>
+    <Body>
+        <div data-group="Compatibility Level">
+            <div class="field">
+                <label>Version</label>
+                @if (before == string.Empty)
+                {
+                    <select disabled>
+                        <option></option>
+                    </select>
+                }
+                else
+                {
+                    <select @bind="@after">
+                        <option value="100">SQL Server 2008</option>
+                        <option value="110">SQL Server 2012</option>
+                        <option value="120">SQL Server 2014</option>
+                        <option value="130">SQL Server 2016</option>
+                        <option value="140">SQL Server 2017</option>
+                        <option value="150">SQL Server 2019 (Recommended)</option>
+                    </select>
+                }
+            </div>
+            <div style="margin: auto; ">
+                <Button isEnabled="before != string.Empty && before != after" onClickAsync="Apply">
+                    Apply
+                </Button>
+            </div>
+        </div>
+    </Body>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralNewServerInstance>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_MigrateServerConfig>">
+            Next
+        </Button>
+    </BottomRight>
+</AssistantPage>
+
+@code {
+
+    string before = string.Empty;
+    string after = string.Empty;
+
+    protected override async Task OnInitAsync()
+    {
+        await base.OnInitAsync();
+
+        var script = sqlServer.GenerateScript(
+            text: $@"Invoke-Sqlcmd -Query ""SELECT compatibility_level FROM sys.databases WHERE name = '{sqlServer.newDatabase}'"""
+        );
+        var result = await session.RunScriptAsync(script);
+
+        before = (result.returnValue?.FirstOrDefault() as dynamic).compatibility_level.ToString();
+        after = before;
+    }
+
+    Task Apply() => Run(async () =>
+    {
+        var script = sqlServer.GenerateScript(
+            text: $@"Invoke-Sqlcmd -Query ""ALTER DATABASE [{sqlServer.newDatabase}] SET COMPATIBILITY_LEVEL = {after}"""
+        );
+        await session.RunScriptAsync(script);
+        await OnInitAsync();
+    });
+
+}
