@@ -12,10 +12,10 @@ public abstract class AppComponent : ComponentBase
 {
     protected static App app => App.Instance;
 
-    protected static Config.BC.RemoteMachine remoteMachine
+    protected static Config_RemoteMachine remoteMachine
         => Config.Instance.bc.remoteMachine;
 
-    protected static Config.BC.RemoteMachine.SqlServer sqlServer
+    protected static Config_SqlServer sqlServer
         => remoteMachine.sqlServer;
 
     protected static async Task GotoAsync<T>() where T : Page

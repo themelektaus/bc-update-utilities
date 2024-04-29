@@ -60,6 +60,7 @@
         .table-section-header {
             padding-right: .25em;
         }
+
         .table-section > div {
             grid-template-columns: 1fr 1fr;
             height: 2em;
@@ -72,6 +73,7 @@ else
         .table-section-header {
             padding-right: 2.75em;
         }
+
         .table-section > div {
             grid-template-columns: 2fr 1fr 1fr 10em;
         }
@@ -82,31 +84,31 @@ else
         flex: 1;
         overflow: hidden;
     }
+
     .table-section-content > .dirty {
         color: orange
     }
+
     .table-section-content > div .bc-conf-edit {
         visibility: hidden;
     }
+
     .table-section-content > div:hover .bc-conf-edit {
         visibility: visible;
     }
 </style>
 
+@using EntryInfo = Config_Configuration.Entry.Info
+
 @code {
 
-    [Parameter] public Config.BC.RemoteMachine.ServerInstance serverInstance { get; set; }
+    [Parameter] public Config_ServerInstance serverInstance { get; set; }
+    [Parameter] public Config_Configuration config { get; set; }
 
     [Parameter] public string fixedSearchText { get; set; }
     [Parameter] public bool isReadonly { get; set; }
+    [Parameter] public EventCallback onRefresh { get; set; }
 
-    public class EntryInfo
-    {
-        public Config.BC.RemoteMachine.ServerInstance.ConfigEntry entry;
-        public string newValue;
-        public bool isDirty => entry.value != newValue;
-        public string editValue;
-    }
     public readonly List<EntryInfo> entryInfos = new();
 
     string searchText = string.Empty;
@@ -143,41 +145,20 @@ else
             searchText = fixedSearchText;
         }
 
-        serverInstance.configuration.Clear();
+        await config.UpdateEntriesAsync();
+        
         entryInfos.Clear();
 
-        var navSession = await serverInstance.GetNavSessionAsync();
-
-        if (navSession is not null)
+        foreach (var entry in config.entries)
         {
-            var result = await navSession.RunScriptAsync(
-                $"Get-NAVServerConfiguration -ServerInstance \"{serverInstance.name}\""
-            );
-
-            if (!result.HasErrors)
+            entryInfos.Add(new()
             {
-                dynamic list = result.returnValue.Single().BaseObject;
-
-                if (list is not null)
-                {
-                    foreach (dynamic @object in list)
-                    {
-                        var entry = new Config.BC.RemoteMachine.ServerInstance.ConfigEntry
-                        {
-                            key = @object.key as string,
-                            value = @object.value as string
-                        };
-                        serverInstance.configuration.Add(entry);
-
-                        entryInfos.Add(new()
-                        {
-                            entry = @entry,
-                            newValue = @entry.value,
-                        });
-                    }
-                }
-            }
+                entry = entry,
+                newValue = entry.value
+            });
         }
+
+        await onRefresh.InvokeAsync();
     });
 
     void Edit(EntryInfo entryInfo)
@@ -211,15 +192,7 @@ else
 
                 if (navSession is not null)
                 {
-                    var result = await navSession.RunScriptAsync(
-                        $"Set-NAVServerConfiguration -ServerInstance \"{serverInstance}\"" +
-                        $" -KeyName \"{entryInfo.entry.key}\" -KeyValue \"{entryInfo.newValue}\""
-                    );
-
-                    if (!result.HasErrors)
-                    {
-                        entryInfo.entry.value = entryInfo.newValue;
-                    }
+                    await config.SetEntryAsync(entryInfo);
                 }
             }
         }

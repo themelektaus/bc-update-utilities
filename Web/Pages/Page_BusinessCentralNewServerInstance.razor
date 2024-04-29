@@ -10,21 +10,14 @@
                                        serverInstance="newServerInstance"
                                        onChange="this.RenderLater"
                                        creationMode="true" />
-        <div class="hidden">
-            <BusinessCentralServerConfiguration @ref="oldConfiguration"
-                                                serverInstance="oldServerInstance" />
+        <div style="display: flex; gap: .5em; margin: auto; ">
+            <Button onClickAsync="Create" styleClass="positive">
+                Create
+            </Button>
+            <Button onClickAsync="Delete" styleClass="negative">
+                Delete
+            </Button>
         </div>
-        <BusinessCentralServerConfiguration @ref="newConfiguration"
-                                            serverInstance="newServerInstance" />
-        <div class="mono">
-            @GenerateNewInstanceScriptText()
-        </div>
-        <Button onClickAsync="CreateNewInstanceAsync">
-            Create
-        </Button>
-        <Button onClickAsync="DeleteInstanceAsync">
-            Delete
-        </Button>
     </Body>
     <BottomLeft>
         <Button onClickAsync="GotoAsync<Page_BusinessCentralOldServerInstance>">
@@ -32,7 +25,7 @@
         </Button>
     </BottomLeft>
     <BottomRight>
-        <Button onClickAsync="GotoAsync<Page_Summary>"
+        <Button onClickAsync="GotoAsync<Page_MigrateServerConfig>"
                 isEnabled="isNextEnabled">
             Next
         </Button>
@@ -41,19 +34,13 @@
 
 @code {
 
-    static Config.BC.RemoteMachine.ServerInstance oldServerInstance
-        => remoteMachine.oldServerInstance;
-
-    static Config.BC.RemoteMachine.ServerInstance newServerInstance
+    static Config_ServerInstance newServerInstance
         => remoteMachine.newServerInstance;
 
     bool isNextEnabled
         => newServerInstance.navAdminTool != string.Empty
         && newServerInstance.name != string.Empty
         && !newServerInstance.allNames.Contains(newServerInstance.name);
-
-    BusinessCentralServerConfiguration oldConfiguration;
-    BusinessCentralServerConfiguration newConfiguration;
 
     protected override async Task OnInitAsync()
     {
@@ -63,37 +50,61 @@
         {
             await remoteMachine.FetchNavAdminToolsAsync();
         }
-
-        foreach (var item in newServerInstance.configuration)
-        {
-            var oldItem = oldServerInstance.configuration.FirstOrDefault(x => x.key == item.key);
-
-            if (oldItem is null)
-            {
-                continue;
-            }
-
-            
-        }
     }
 
-    Task CreateNewInstanceAsync() => Run(async () =>
+    async Task Create()
+    {
+        await NewServerAsync();
+        await NewWebServerAsync();
+    }
+
+    async Task Delete()
+    {
+        await RemoveServerAsync();
+        await RemoveWebServerAsync();
+    }
+
+    Task NewServerAsync() => Run(async () =>
     {
         var session = await newServerInstance.GetNavSessionAsync();
-
-        await session.RunScriptAsync(GenerateNewInstanceScriptText());
+        await session.RunScriptAsync(ScriptText_NewServer());
     });
 
-    Task DeleteInstanceAsync() => Run(async () =>
+    Task RemoveServerAsync() => Run(async () =>
     {
         var session = await newServerInstance.GetNavSessionAsync();
-
-        await session.RunScriptAsync(GenerateDeleteInstanceScriptText());
+        await session.RunScriptAsync(ScriptText_RemoveServer());
     });
 
-    string GenerateNewInstanceScriptText()
+    Task NewWebServerAsync() => Run(async () =>
     {
-        var scriptText = new System.Text.StringBuilder($"New-NAVServerInstance {newServerInstance.name}");
+        var session = await newServerInstance.GetNavSessionAsync();
+        await session.RunScriptAsync(ScriptText_NewWebServer());
+    });
+
+    Task RemoveWebServerAsync() => Run(async () =>
+    {
+        var session = await newServerInstance.GetNavSessionAsync();
+        await session.RunScriptAsync(ScriptText_RemoveWebServer());
+    });
+
+    string ScriptText_NewServer()
+    {
+        var scriptText = new System.Text.StringBuilder($"New-NAVServerInstance \"{newServerInstance.name}\"");
+
+        var host = sqlServer.hostname.Split('\\', 2, StringSplitOptions.RemoveEmptyEntries);
+
+        if (host.Length == 2)
+        {
+            scriptText.Append($" -DatabaseServer \"{host[0]}\"");
+            scriptText.Append($" -DatabaseInstance \"{host[1]}\"");
+        }
+        else
+        {
+            scriptText.Append($" -DatabaseServer \"{sqlServer.hostname}\"");
+        }
+
+        scriptText.Append($" -DatabaseName \"{sqlServer.newDatabase}\"");
 
         var keys = new[]
         {
@@ -105,9 +116,11 @@
             "SOAPServicesPort"
         };
 
+        var oldServerConfig = remoteMachine.oldServerInstance.serverConfig;
+
         foreach (var key in keys)
         {
-            var configEntry = oldServerInstance.configuration.FirstOrDefault(x => x.key == key);
+            var configEntry = oldServerConfig.entries.FirstOrDefault(x => x.key == key);
 
             if (configEntry is not null)
             {
@@ -115,14 +128,30 @@
             }
         }
 
-        //scriptText.Append(" -verbose");
-
         return scriptText.ToString();
     }
 
-    string GenerateDeleteInstanceScriptText()
+    string ScriptText_RemoveServer()
     {
-        return $"Remove-NAVServerInstance -ServerInstance {newServerInstance.name} -Force";
+        return "Remove-NAVServerInstance"
+            + $" -ServerInstance \"{newServerInstance.name}\" "
+            + $" -Force";
+    }
+
+    string ScriptText_NewWebServer()
+    {
+        return "New-NAVWebServerInstance"
+            + $" -WebServerInstance {newServerInstance.name}"
+            + $" -ServerInstance {newServerInstance.name}"
+            + $" -Server {remoteMachine.Hostname}"
+            + $" -DnsIdentity {remoteMachine.Hostname}";
+    }
+
+    string ScriptText_RemoveWebServer()
+    {
+        return "Remove-NAVWebServerInstance"
+            + $" -WebServerInstance {newServerInstance.name}"
+            + $" -Force";
     }
 
 }

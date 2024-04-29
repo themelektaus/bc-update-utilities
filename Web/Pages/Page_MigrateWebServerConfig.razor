@@ -1,0 +1,38 @@
+﻿@inherits PageWithSession
+
+<AssistantPage>
+    <Title>
+        Business Central: Migrate Web Server Config
+        <span>@session?.ToMarkupString()</span>
+    </Title>
+    <Body>
+        <BusinessCentralServerConfiguration @ref="configuration"
+                                            serverInstance="remoteMachine.newServerInstance"
+                                            config="remoteMachine.newServerInstance.webServerConfig"
+                                            onRefresh="OnRefresh" />
+    </Body>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_BusinessCentralNewServerInstance>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_MigrateWebServerConfig>">
+            Next
+        </Button>
+    </BottomRight>
+</AssistantPage>
+
+@code {
+
+    BusinessCentralServerConfiguration configuration;
+
+    void OnRefresh()
+    {
+        Config.BC.OverwriteBy(
+            configuration.entryInfos,
+            remoteMachine.oldServerInstance.webServerConfig.entries
+        );
+    }
+
+}

@@ -5,8 +5,10 @@
         Business Central: Server Configurations
     </Title>
     <Body>
-        <BusinessCentralServerConfiguration serverInstance="remoteMachine.oldServerInstance" />
-        <BusinessCentralServerConfiguration serverInstance="remoteMachine.newServerInstance" />
+        <BusinessCentralServerConfiguration serverInstance="remoteMachine.oldServerInstance"
+                                            config="remoteMachine.oldServerInstance.serverConfig" />
+        <BusinessCentralServerConfiguration serverInstance="remoteMachine.newServerInstance"
+                                            config="remoteMachine.newServerInstance.serverConfig" />
     </Body>
     <Bottom>
         <Button isEnabled="false">
@@ -50,7 +52,7 @@
             [ "SOAPServicesSSLEnabled", "True" ],
             [ "ODataServicesSSLEnabled", "True" ],
             [ "ODataServicesEnabled", "True" ]
-        })
+    })
         {
             var entryInfo = configuration.entryInfos.FirstOrDefault(x => x.entry.key == keyValuePair[0]);
             entryInfo.newValue = keyValuePair[1];

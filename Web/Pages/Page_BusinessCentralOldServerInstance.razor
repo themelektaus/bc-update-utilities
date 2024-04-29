@@ -7,12 +7,14 @@
     </Title>
     <Body>
         <BusinessCentralServerInstance groupTitle="Old Server Instance"
-                                       serverInstance="serverInstance"
+                                       serverInstance="oldServerInstance"
                                        onChange="() => configuration?.RefreshAsync()" />
         <BusinessCentralServerConfiguration @ref="configuration"
-                                            serverInstance="serverInstance"
+                                            serverInstance="oldServerInstance"
+                                            config="oldServerInstance.serverConfig"
                                             fixedSearchText="@('/' + string.Join('|', fixedSearchText) + '/')"
-                                            isReadonly="true" />
+                                            isReadonly="true"
+                                            onRefresh="OnRefresh" />
     </Body>
     <BottomLeft>
         <Button onClickAsync="GotoAsync<Page_MicrosoftSqlBackupAndRestore>">
@@ -46,14 +48,14 @@
         "SolutionVersionExtension$",
     ];
 
-    static Config.BC.RemoteMachine.ServerInstance serverInstance
+    static Config_ServerInstance oldServerInstance
         => remoteMachine.oldServerInstance;
 
     BusinessCentralServerConfiguration configuration;
 
     bool isNextEnabled
-        => serverInstance.navAdminTool != string.Empty
-        && serverInstance.name != string.Empty;
+        => oldServerInstance.navAdminTool != string.Empty
+        && oldServerInstance.name != string.Empty;
 
     protected override async Task OnInitAsync()
     {
@@ -63,6 +65,11 @@
         {
             await remoteMachine.FetchNavAdminToolsAsync();
         }
+    }
+
+    async Task OnRefresh()
+    {
+        await oldServerInstance.webServerConfig.UpdateEntriesAsync();
     }
 
 }

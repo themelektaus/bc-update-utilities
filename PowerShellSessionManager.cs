@@ -8,7 +8,7 @@ public static class PowerShellSessionManager
 {
     static readonly List<PowerShellSession> sessions = [];
 
-    public static async Task<PowerShellSession> GetSessionAsync(Config.BC.RemoteMachine rm, string navAdminTool)
+    public static async Task<PowerShellSession> GetSessionAsync(Config_RemoteMachine rm, string navAdminTool)
     {
         var session = sessions.FirstOrDefault(x
             => x.Hostname == rm.Hostname

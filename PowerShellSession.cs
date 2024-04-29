@@ -57,9 +57,12 @@ public class PowerShellSession : IDisposable
         {
             var stringTypeName = "System.String";
 
-            foreach (var value in returnValue.Where(x => x.TypeNames.Contains(stringTypeName)))
+            foreach (var value in returnValue)
             {
-                Logger.Result(value.ToString());
+                if (value is not null && value.TypeNames.Contains(stringTypeName))
+                {
+                    Logger.Result(value.ToString());
+                }
             }
         }
 
