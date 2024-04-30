@@ -1,1 +1,18 @@
-﻿<div class="loading"></div>
+﻿<div class="loading @(renderedOnce && isVisible ? "visible" : "")"></div>
+
+@code {
+
+    [Parameter] public bool isVisible { get; set; }
+
+    bool renderedOnce;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!renderedOnce)
+        {
+            renderedOnce = true;
+            StateHasChanged();
+        }
+    }
+
+}

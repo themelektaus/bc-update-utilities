@@ -1,6 +1,6 @@
 ﻿@inherits PageWithSession
 
-<AssistantPage>
+<AssistantPage isLoading="!isInitialized">
     <Title>
         Microsoft SQL Compatibility Level
         <span>@session?.ToMarkupString()</span>

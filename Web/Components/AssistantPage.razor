@@ -3,7 +3,11 @@
 <div class="assistant-page-body">
     <div class="assistant-page-body-content">
         <div class="assistant-page-body-inner-content">
-            @Body
+            @if (!isLoading)
+            {
+                @Body
+            }
+            <Loading isVisible="isLoading" />
         </div>
     </div>
     <div class="assistant-page-body-bottom">
@@ -22,6 +26,7 @@
     [Parameter] public RenderFragment BottomLeft { get; set; }
     [Parameter] public RenderFragment Bottom { get; set; }
     [Parameter] public RenderFragment BottomRight { get; set; }
+    [Parameter] public bool isLoading { get; set; }
     [Parameter] public Action onBackClick { get; set; }
     [Parameter] public Action onNextClick { get; set; }
 

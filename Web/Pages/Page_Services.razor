@@ -1,17 +1,11 @@
 ﻿@inherits PageWithSession
 
-<AssistantPage>
+<AssistantPage isLoading="!isInitialized">
     <Title>
         Services
         <span>@session?.ToMarkupString()</span>
     </Title>
     <Body>
-        @if (!isInitialized)
-        {
-            <Loading />
-            return;
-        }
-
         <div class="table services">
             <InputSearch @bind-value="searchText" />
             <div class="table-section table-section-header">

@@ -1,5 +1,4 @@
 ﻿<div id="root-content" class="@(App.Instance.IsBusy() ? "disabled" : "")">
-    <div class="loading"></div>
     <Menu />
     @if (App.Instance.Update?.available ?? false)
     {

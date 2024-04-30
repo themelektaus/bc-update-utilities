@@ -1,6 +1,6 @@
 ﻿@inherits PageWithSession
 
-<AssistantPage>
+<AssistantPage isLoading="!isInitialized">
     <Title>
         Microsoft SQL Connection
         <span>@session?.ToMarkupString()</span>

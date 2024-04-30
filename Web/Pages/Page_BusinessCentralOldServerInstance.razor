@@ -1,6 +1,6 @@
 ﻿@inherits PageWithSession
 
-<AssistantPage>
+<AssistantPage isLoading="!isInitialized">
     <Title>
         Business Central: Old Server Instance
         <span>@session?.ToMarkupString()</span>
