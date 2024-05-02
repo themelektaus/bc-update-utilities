@@ -20,7 +20,7 @@
 }
 
 @mixin backdrop-filter-disabled {
-    backdrop-filter: brightness(.75) blur(.1em);
+    backdrop-filter: brightness(.625);
 }
 
 ::-webkit-scrollbar {
@@ -336,9 +336,9 @@ button {
     }
 }
 
-.disabled [data-page] .loading,
-[data-page] .loading.visible {
-    opacity: .7;
+.disabled [data-page] .loading:not(.hidden),
+[data-page] .loading.visible:not(.hidden) {
+    opacity: .875;
 }
 
 [data-page=Page_Welcome] {

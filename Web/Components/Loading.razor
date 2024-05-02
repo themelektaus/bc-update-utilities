@@ -1,18 +1,16 @@
-﻿<div class="loading @(renderedOnce && isVisible ? "visible" : "")"></div>
+﻿<div class="loading @(initialized ? "" : "hidden") @(isVisible ? "visible" : "")"></div>
 
 @code {
 
     [Parameter] public bool isVisible { get; set; }
 
-    bool renderedOnce;
+    bool initialized;
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnInitializedAsync()
     {
-        if (!renderedOnce)
-        {
-            renderedOnce = true;
-            StateHasChanged();
-        }
+        await Task.Delay(100);
+        initialized = true;
+        StateHasChanged();
     }
 
 }

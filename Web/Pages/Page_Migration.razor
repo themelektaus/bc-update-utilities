@@ -1,0 +1,127 @@
+﻿@inherits Page
+
+<AssistantPage isLoading="!isInitialized">
+    <Title>
+        Migration
+    </Title>
+    <Body>
+        <div data-group="Old Server Instance">
+            <Button onClickAsync="() => StartServerInstance(remoteMachine.oldServerInstance)">Start Server Instance</Button>
+            <Button onClickAsync="UninstallApps">Uninstall Apps</Button>
+            <Button onClickAsync="UnpublishApps">Unpublish Apps</Button>
+            <Button onClickAsync="() => StopServerInstance(remoteMachine.oldServerInstance)">Stop Server Instance</Button>
+        </div>
+        <div data-group="New Server Instance">
+            <Button onClickAsync="() => StartServerInstance(remoteMachine.newServerInstance)">Start Server Instance</Button>
+            <Button onClickAsync="ConvertDatabase">Convert Database</Button>
+            <Button onClickAsync="() => StopServerInstance(remoteMachine.newServerInstance)">Stop Server Instance</Button>
+        </div>
+    </Body>
+    <BottomLeft>
+        <Button onClickAsync="GotoAsync<Page_MicrosoftSqlCompatibilityLevel>">
+            Back
+        </Button>
+    </BottomLeft>
+    <BottomRight>
+        <Button onClickAsync="GotoAsync<Page_Summary>">
+            Next
+        </Button>
+    </BottomRight>
+</AssistantPage>
+
+@code {
+
+    Task StartServerInstance(Config_ServerInstance serverInstance) => Run(async () =>
+    {
+        var session = await serverInstance.GetNavSessionAsync();
+        
+        await session.RunScriptAsync(
+            new StringBuilder()
+                .Append("Start-NAVServerInstance")
+                .Append($" -ServerInstance \"{serverInstance.name}\"")
+                .ToString()
+        );
+    });
+    
+    Task StopServerInstance(Config_ServerInstance serverInstance) => Run(async () =>
+    {
+        var session = await serverInstance.GetNavSessionAsync();
+
+        await session.RunScriptAsync(
+            new StringBuilder()
+                .Append("Stop-NAVServerInstance")
+                .Append($" -ServerInstance \"{serverInstance.name}\"")
+                .ToString()
+        );
+    });
+
+    Task UninstallApps() => Run(async () =>
+    {
+        var x = remoteMachine.oldServerInstance;
+
+        var session = await x.GetNavSessionAsync();
+        
+        var apps = await session.GetObjectListAsync(
+            new StringBuilder()
+                .Append("Get-NAVAppInfo")
+                .Append($" -ServerInstance \"{x.name}\"")
+                .ToString()
+        );
+
+        foreach (dynamic app in apps)
+        {
+            await session.RunScriptAsync(
+                new StringBuilder()
+                    .Append("Uninstall-NAVApp")
+                    .Append($" -ServerInstance \"{x.name}\"")
+                    .Append($" -Name \"{app.Name}\"")
+                    .Append($" -Version \"{app.Version}\"")
+                    .Append(" -Force")
+                    .ToString()
+            );
+        }
+    });
+
+    Task UnpublishApps() => Run(async () =>
+    {
+        var x = remoteMachine.oldServerInstance;
+
+        var session = await x.GetNavSessionAsync();
+
+        var apps = await session.GetObjectListAsync(
+            new StringBuilder()
+                .Append("Get-NAVAppInfo")
+                .Append($" -ServerInstance \"{x.name}\"")
+                .Append($" -SymbolsOnly")
+                .ToString()
+        );
+
+        foreach (dynamic app in apps)
+        {
+            await session.RunScriptAsync(
+                new StringBuilder()
+                    .Append("Unpublish-NAVApp")
+                    .Append($" -ServerInstance \"{x.name}\"")
+                    .Append($" -Name \"{app.Name}\"")
+                    .Append($" -Version \"{app.Version}\"")
+                    .ToString()
+            );
+        }
+    });
+
+    Task ConvertDatabase() => Run(async () =>
+    {
+        var x = remoteMachine.newServerInstance;
+
+        var session = await x.GetNavSessionAsync();
+
+        await session.RunScriptAsync(
+            new StringBuilder()
+                .Append("Invoke-NAVApplicationDatabaseConversion")
+                .Append($" -DatabaseServer \"{sqlServer.hostname}\"")
+                .Append($" -DatabaseName \"{sqlServer.newDatabase}\"")
+                .ToString()
+        );
+    });
+
+}

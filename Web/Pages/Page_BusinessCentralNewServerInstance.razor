@@ -65,14 +65,14 @@
     {
         await NewServerAsync();
         await NewWebServerAsync();
-        await GotoAsync<Page_MigrateServerConfig>();
+        await GotoAsync<Page_MicrosoftSqlCompatibilityLevel>();
     });
 
     Task Delete() => Run(async () =>
     {
         await RemoveServerAsync();
         await RemoveWebServerAsync();
-        await newServerInstance.FetchServerInstanceNamesAsync();
+        await GotoAsync<Page_BusinessCentralOldServerInstance>();
     });
 
     Task NewServerAsync() => Run(async () =>
